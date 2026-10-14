@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Bigly Piez</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Baloo+2:wght@500;600;800&display=swap">
+<style>
+/* Layout: a status line, a shelf of toy eggs (jukebox Pis on one row), one detail card for the picked pet; diary and face guide fold away. */
+:root{
+  --bg:#eef0f6; --fg:#23233a; --muted:#62627e; --card:#ffffff; --line:#d6d8e6;
+  --lcd:#c3cfa1; --pix:#27311c; --lcdline:#9fae7c;
+  --good:#2f8f5b; --warn:#c07a12; --bad:#c43c4c; --idle:#7a7a96;
+  --shell-a:#ff9fb8; --shell-b:#8fd3ff; --shell-c:#ffd36e; --shell-d:#b9a4ff; --shell-e:#8ee6b5; --shell-f:#ffb38a; --shell-g:#d0d3e0; --shell-h:#f4a6e8;
+  --shadow:rgba(35,35,58,.18); --bubble:#ffffff;
+  /* BiglyColor translucent red: change the RGB here only. */
+  --bigly-red-rgb:227 27 35;
+  --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pixel:"Silkscreen", ui-monospace, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#171726; --fg:#ececf6; --muted:#a2a2bf; --card:#22223a; --line:#34345a; --bubble:#2d2d4a;
+  --good:#5ccf8f; --warn:#f0b04a; --bad:#ff7486; --idle:#9a9ab8; --shadow:rgba(0,0,0,.45); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171726; --fg:#ececf6; --muted:#a2a2bf; --card:#22223a; --line:#34345a; --bubble:#2d2d4a;
+  --good:#5ccf8f; --warn:#f0b04a; --bad:#ff7486; --idle:#9a9ab8; --shadow:rgba(0,0,0,.45); color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;gap:24px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,5vw,2.8rem);line-height:1;margin:0;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.sample{display:inline-block;font-family:var(--pixel);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--warn);color:var(--bg);padding:2px 8px;border-radius:4px;vertical-align:middle}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:600 .95rem var(--body);border:2px solid var(--fg);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.btn:focus-visible,.dev:focus-visible,.hw:focus-visible,.clean:focus-visible{outline:3px solid var(--warn);outline-offset:3px}
+.summary{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:600;font-variant-numeric:tabular-nums}
+.dot{width:10px;height:10px;border-radius:50%}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:28px 20px}
+.dev{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 18px 18px;position:relative;
+  border-radius:50% 50% 46% 46% / 58% 58% 42% 42%;background:radial-gradient(120% 80% at 30% 15%,rgb(255 255 255/.45),transparent 45%),linear-gradient(170deg,rgb(var(--bigly-red-rgb)/.62),rgb(var(--bigly-red-rgb)/.82));-webkit-backdrop-filter:blur(6px) saturate(1.4);backdrop-filter:blur(6px) saturate(1.4);border:1.5px solid rgb(var(--bigly-red-rgb)/.9);box-shadow:inset 0 -10px 0 rgba(0,0,0,.14),inset 0 8px 0 rgba(255,255,255,.3),0 10px 24px rgb(var(--bigly-red-rgb)/.3);
+  transition:transform .15s}
+.dev:hover{transform:translateY(-3px)}
+.dev[aria-current="true"]{box-shadow:inset 0 -10px 0 rgba(0,0,0,.14),inset 0 8px 0 rgba(255,255,255,.3),0 0 0 4px var(--fg),0 10px 24px rgb(var(--bigly-red-rgb)/.3)}
+.dev.wobble{animation:wob .5s}
+@keyframes wob{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+.tag{font-family:var(--pixel);font-size:.72rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);letter-spacing:.05em;text-transform:uppercase;text-align:center}
+.screen{width:150px;max-width:100%;aspect-ratio:1/1;background:var(--lcd);border-radius:12px;border:6px solid rgba(0,0,0,.18);box-shadow:inset 0 0 0 2px var(--lcdline);
+  display:grid;grid-template-rows:1fr auto;padding:6px;box-sizing:border-box;color:var(--pix);font-family:var(--pixel)}
+.screen canvas{width:100%;height:100%;image-rendering:pixelated;display:block;min-height:0}
+.screen .lcdtext{font-size:.62rem;text-align:center;text-transform:uppercase;line-height:1.2;min-height:1.2em}
+.screen .stats{display:grid;align-content:center;gap:2px;font-size:.66rem;text-transform:uppercase}
+.screen .stats div{display:flex;justify-content:space-between}
+.hwrow{display:flex;gap:12px}
+.hw{width:20px;height:20px;border-radius:50%;background:#3b3550;border:none;box-shadow:inset 0 -3px 0 rgba(0,0,0,.4);cursor:pointer;color:#fff;font:700 .6rem/20px var(--pixel);text-align:center;padding:0}
+.name{font-family:var(--display);font-weight:800;font-size:1.15rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);line-height:1}
+.poopbadge{position:absolute;top:2px;right:18px;background:#3b3550;color:#fff;font:700 .62rem var(--pixel);border-radius:999px;padding:3px 7px}
+.care{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:28px}
+@media (max-width:760px){.care{grid-template-columns:1fr}}
+.care h2{font-family:var(--display);font-size:1.6rem;margin:0;line-height:1.1}
+.hero{display:flex;gap:14px;align-items:flex-start;margin-top:12px}
+.bigscreen{width:118px;flex:none;aspect-ratio:1/1;background:var(--lcd);border-radius:14px;border:6px solid rgb(var(--bigly-red-rgb)/.7);padding:6px;box-sizing:border-box}
+.bigscreen canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+.bubble{position:relative;background:var(--bubble);border:2px solid var(--fg);border-radius:14px;padding:10px 12px;font-weight:600;min-width:0}
+.bubble::before{content:"";position:absolute;left:-9px;top:18px;width:14px;height:14px;background:var(--bubble);border-left:2px solid var(--fg);border-bottom:2px solid var(--fg);transform:rotate(45deg)}
+.mood{font-weight:700;margin:12px 0 0}
+.meta{color:var(--muted);font-size:.9rem;margin:4px 0 0}
+.meters{display:grid;gap:8px;margin-top:12px}
+.meter{display:grid;grid-template-columns:6.5em auto 1fr;align-items:center;gap:10px}
+.meter b,.label{font-family:var(--pixel);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+.label{color:var(--muted);display:block;margin:0 0 6px}
+.meter .hearts{font-size:1.15rem;letter-spacing:2px;white-space:nowrap;color:var(--bad)}
+.meter span{color:var(--muted);font-size:.88rem;font-variant-numeric:tabular-nums}
+.right{display:grid;gap:20px;align-content:start;min-width:0}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl{overflow-x:auto;min-width:0}
+.st{font-weight:700;white-space:nowrap;text-align:right}
+.todos{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.todos li{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:10px;padding:8px 10px}
+.todos li.done{opacity:.55;text-decoration:line-through}
+.who{font:700 .62rem var(--pixel);text-transform:uppercase;background:var(--fg);color:var(--bg);border-radius:4px;padding:2px 6px;flex:none;margin-top:3px}
+.clean{all:unset;cursor:pointer;margin-left:auto;font:700 .62rem var(--pixel);text-transform:uppercase;border:1.5px solid var(--fg);border-radius:999px;padding:2px 8px;flex:none}
+.todos span.txt{min-width:0}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{font:600 10px var(--body);fill:var(--muted)}
+.diary{display:grid;gap:0;margin:0;padding:0;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.diary li{display:grid;grid-template-columns:4.2em 9em minmax(0,1fr);gap:12px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.diary li:last-child{border-bottom:none}
+.diary .d{font:700 .75rem var(--pixel);color:var(--muted);padding-top:3px;font-variant-numeric:tabular-nums}
+.diary .p{font-weight:700}
+@media (max-width:560px){.diary li{grid-template-columns:4.2em minmax(0,1fr)}.diary .p{grid-column:2}.diary .e{grid-column:2}}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.leg{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+.leg canvas{width:52px;height:52px;image-rendering:pixelated;background:var(--lcd);border-radius:6px;padding:3px;flex:none}
+.leg div{min-width:0;font-size:.85rem;color:var(--muted);line-height:1.3}
+.leg strong{display:block;color:var(--fg);font-size:.95rem}
+h3{font-family:var(--display);font-size:1.2rem;margin:0 0 10px}
+.float{position:fixed;pointer-events:none;font-size:1.4rem;color:var(--bad);animation:up 1s ease-out forwards;z-index:5}
+@keyframes up{to{transform:translateY(-60px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.dev{transition:none}.dev.wobble{animation:none}.float{animation:none;opacity:0}}
+
+/* Realistic toy: keychain loop, printed faceplate, recessed LCD, icon bar, silver buttons. */
+.dev{isolation:isolate;padding:36px 22px 24px;gap:8px;border-radius:50% 50% 47% 47% / 57% 57% 43% 43%;
+  background:radial-gradient(38% 22% at 30% 13%,rgb(255 255 255/.7),rgb(255 255 255/0) 70%),radial-gradient(90% 60% at 70% 95%,rgb(0 0 0/.22),transparent 60%),linear-gradient(165deg,rgb(var(--bigly-red-rgb)/.66),rgb(var(--bigly-red-rgb)/.9));
+  box-shadow:inset 0 0 0 2px rgb(255 255 255/.22),inset 0 -16px 24px rgb(0 0 0/.24),inset 0 12px 18px rgb(255 255 255/.22),0 16px 24px -8px rgb(0 0 0/.38),0 4px 8px rgb(0 0 0/.14);margin-top:16px}
+.dev[aria-current="true"]{box-shadow:inset 0 0 0 2px rgb(255 255 255/.22),inset 0 -16px 24px rgb(0 0 0/.24),inset 0 12px 18px rgb(255 255 255/.22),0 16px 24px -8px rgb(0 0 0/.38);outline:4px solid var(--fg);outline-offset:4px}
+.dev::before{content:"";position:absolute;top:-21px;left:50%;width:22px;height:22px;margin-left:-11px;border-radius:50%;border:4px solid #c6c9d4;border-bottom-color:#9a9eac;box-shadow:inset 0 1px 2px rgb(0 0 0/.35),0 1px 2px rgb(0 0 0/.3);z-index:-1}
+.dev::after{content:"";position:absolute;inset:20px 13px 13px;border-radius:50% 50% 46% 46% / 54% 54% 46% 46%;z-index:-1;
+  background:radial-gradient(rgb(255 255 255/.13) 1px,transparent 1.6px) 0 0/9px 9px,radial-gradient(70% 55% at 50% 38%,rgb(255 255 255/.2),rgb(255 255 255/.04) 75%);
+  box-shadow:inset 0 2px 5px rgb(0 0 0/.28),0 1px 0 rgb(255 255 255/.28)}
+.dev.egg-pet::after{opacity:.6}
+.screen{width:128px;border:none;border-radius:7px;padding:7px;position:relative;
+  background:linear-gradient(160deg,#cdd8ab,var(--lcd) 60%,#b4c191);
+  box-shadow:0 0 0 5px #2b2734,0 0 0 7px rgb(255 255 255/.3),0 3px 0 7px rgb(0 0 0/.18),inset 0 3px 7px rgb(0 0 0/.3)}
+.screen::after{content:"";position:absolute;inset:0;border-radius:7px;pointer-events:none;background:linear-gradient(125deg,rgb(255 255 255/.32),rgb(255 255 255/0) 38%)}
+.icons{display:flex;justify-content:space-between;width:120px;color:rgb(35 12 20/.62)}
+.icons .ic{width:13px;height:13px;display:block;shape-rendering:crispEdges}
+.icons.top{margin-bottom:4px}.icons.bot{margin-top:4px}
+.tag{font-size:.64rem;color:rgb(255 255 255/.92)}
+.name{font-size:1.1rem;letter-spacing:.01em}
+.hwrow{gap:16px;align-items:flex-start;margin-top:4px}
+.hw{width:26px;height:26px;color:#4a4558;font:700 .62rem/26px var(--pixel);
+  background:radial-gradient(circle at 35% 30%,#fbfbfd,#c3c6d3 55%,#8d91a2);
+  box-shadow:0 2px 0 rgb(0 0 0/.35),inset 0 -2px 2px rgb(0 0 0/.18),0 0 0 3px rgb(0 0 0/.2)}
+.hw:nth-child(2){margin-top:9px}
+.hw:active{transform:translateY(2px);box-shadow:0 0 0 rgb(0 0 0/.35),inset 0 -1px 1px rgb(0 0 0/.18),0 0 0 3px rgb(0 0 0/.2)}
+.poopbadge{top:16px;right:22px}
+.bigscreen{border:none;box-shadow:0 0 0 5px #2b2734,0 0 0 9px rgb(var(--bigly-red-rgb)/.75),inset 0 3px 7px rgb(0 0 0/.3);background:linear-gradient(160deg,#cdd8ab,var(--lcd) 60%,#b4c191)}
+.shelf{grid-template-columns:repeat(auto-fill,minmax(min(100%,218px),1fr));gap:40px 22px}
+
+/* BiglyColor: the jukebox's 8 see-through plastics (bigly-jukebox web/src/plasticPalette.ts), one per pet.
+   Tokens generated by plasticTokens(); the look is slabPlastic.css: a circuit board under a coloured film. */
+.pl-purple{--bigly-red-rgb:153 112 200;--sw:#9970C8;--lip-edge:rgba(200, 164, 226, 0.5);--lip-sheen:rgba(212, 189, 233, 0.26);--lip-1:#3f224d;--lip-2:#21132d;--lip-3:#160d20;--lip-4:#0e0817;--lip-film-1:rgba(167, 107, 199, 0.15);--lip-film-2:rgba(123, 67, 144, 0.21);--lip-film-3:rgba(48, 26, 61, 0.5);--lip-deep:rgba(48, 26, 61, 0.88);--lip-lamp:rgba(195, 153, 223, 0.13);--lip-rim:rgba(192, 157, 228, 0.3);--lip-under:rgba(27, 14, 39, 0.75);--lip-bloom:rgba(188, 150, 227, 0.2);--lip-gloss:rgba(231, 221, 244, 0.14);--lip-gloss-hi:rgba(242, 237, 249, 0.22);--lip-bubble:rgba(218, 201, 238, 0.13);--lip-lit-in:rgba(209, 192, 238, 0.4);--lip-ic-lit:#1a1124;--lip-ic-body:#07040c;--lip-ic-low:#030104;--lip-conn-lit:#160e1f;--lip-conn-body:#08040d;--lip-conn-low:#010104;--lip-can:#0d0918;--lip-can-rim:#030208;--lip-steel-lo:#1a1023;--lip-smd:#040309;--lip-pad:rgba(145, 93, 153, 0.3);--lip-ink:rgba(238, 228, 245, 0.72);--lip-art-rim:rgba(200, 164, 226, 0.22);--pcb-1:#6b4b6e;--pcb-2:#2e2010;--pcb-3:#030202;--pcb-trace:rgba(127, 80, 107, 0.72);--pcb-trace-dim:rgba(82, 53, 53, 0.5);--pcb-etch:rgba(2, 1, 2, 0.3);--pcb-ic:#0a050f;--pcb-leg:rgba(102, 71, 125, 0.42);--pcb-gold:rgba(170, 94, 173, 0.78);--pcb-steel:rgba(133, 93, 162, 0.26)}
+.pl-red{--bigly-red-rgb:213 75 93;--sw:#D54B5D;--lip-edge:rgba(255, 143, 150, 0.5);--lip-sheen:rgba(255, 175, 180, 0.26);--lip-1:#5e0716;--lip-2:#35060f;--lip-3:#26050c;--lip-4:#1a0308;--lip-film-1:rgba(236, 62, 84, 0.15);--lip-film-2:rgba(176, 16, 40, 0.21);--lip-film-3:rgba(74, 5, 18, 0.5);--lip-deep:rgba(74, 5, 18, 0.88);--lip-lamp:rgba(255, 128, 136, 0.13);--lip-rim:rgba(255, 130, 148, 0.3);--lip-under:rgba(46, 3, 12, 0.75);--lip-bloom:rgba(255, 120, 140, 0.2);--lip-gloss:rgba(255, 214, 218, 0.14);--lip-gloss-hi:rgba(255, 234, 236, 0.22);--lip-bubble:rgba(255, 190, 196, 0.13);--lip-lit-in:rgba(255, 176, 190, 0.4);--lip-ic-lit:#2a080f;--lip-ic-body:#0f0204;--lip-ic-low:#050101;--lip-conn-lit:#24070d;--lip-conn-body:#100204;--lip-conn-low:#040001;--lip-can:#1a040b;--lip-can-rim:#090103;--lip-steel-lo:#29080e;--lip-smd:#0b0103;--lip-pad:rgba(189, 71, 61, 0.3);--lip-ink:rgba(255, 224, 224, 0.72);--lip-art-rim:rgba(255, 143, 150, 0.22);--pcb-1:#864137;--pcb-2:#19280f;--pcb-3:#030201;--pcb-trace:rgba(143, 78, 36, 0.72);--pcb-trace-dim:rgba(76, 59, 20, 0.5);--pcb-etch:rgba(3, 1, 1, 0.3);--pcb-ic:#130204;--pcb-leg:rgba(145, 47, 62, 0.42);--pcb-gold:rgba(222, 61, 36, 0.78);--pcb-steel:rgba(188, 62, 79, 0.26)}
+.pl-clear{--bigly-red-rgb:229 232 234;--sw:#E5E8EA;--lip-edge:rgba(180, 181, 181, 0.5);--lip-sheen:rgba(199, 200, 200, 0.26);--lip-1:#303031;--lip-2:#1a1a1b;--lip-3:#121212;--lip-4:#0b0b0b;--lip-film-1:rgba(136, 137, 138, 0.15);--lip-film-2:rgba(94, 95, 95, 0.21);--lip-film-3:rgba(37, 37, 37, 0.5);--lip-deep:rgba(37, 37, 37, 0.88);--lip-lamp:rgba(172, 173, 173, 0.13);--lip-rim:rgba(174, 174, 175, 0.3);--lip-under:rgba(21, 22, 22, 0.75);--lip-bloom:rgba(169, 169, 170, 0.2);--lip-gloss:rgba(225, 226, 226, 0.14);--lip-gloss-hi:rgba(240, 240, 240, 0.22);--lip-bubble:rgba(209, 210, 210, 0.13);--lip-lit-in:rgba(201, 201, 202, 0.4);--lip-ic-lit:#151616;--lip-ic-body:#060606;--lip-ic-low:#020202;--lip-conn-lit:#121212;--lip-conn-body:#060606;--lip-conn-low:#010101;--lip-can:#0c0c0c;--lip-can-rim:#030303;--lip-steel-lo:#151515;--lip-smd:#040404;--lip-pad:rgba(115, 115, 116, 0.3);--lip-ink:rgba(232, 232, 233, 0.72);--lip-art-rim:rgba(180, 181, 181, 0.22);--pcb-1:#585859;--pcb-2:#232323;--pcb-3:#020202;--pcb-trace:rgba(97, 97, 98, 0.72);--pcb-trace-dim:rgba(62, 62, 62, 0.5);--pcb-etch:rgba(1, 2, 2, 0.3);--pcb-ic:#070707;--pcb-leg:rgba(86, 86, 87, 0.42);--pcb-gold:rgba(127, 128, 129, 0.78);--pcb-steel:rgba(112, 113, 114, 0.26)}
+.pl-cyan{--bigly-red-rgb:84 187 205;--sw:#54BBCD;--lip-edge:rgba(120, 195, 205, 0.5);--lip-sheen:rgba(160, 210, 216, 0.26);--lip-1:#01373f;--lip-2:#001f22;--lip-3:#011618;--lip-4:#000e0f;--lip-film-1:rgba(13, 154, 171, 0.15);--lip-film-2:rgba(8, 106, 122, 0.21);--lip-film-3:rgba(1, 43, 48, 0.5);--lip-deep:rgba(1, 43, 48, 0.88);--lip-lamp:rgba(101, 188, 201, 0.13);--lip-rim:rgba(103, 191, 198, 0.3);--lip-under:rgba(0, 26, 28, 0.75);--lip-bloom:rgba(89, 187, 195, 0.2);--lip-gloss:rgba(207, 231, 233, 0.14);--lip-gloss-hi:rgba(231, 243, 243, 0.22);--lip-bubble:rgba(179, 218, 222, 0.13);--lip-lit-in:rgba(162, 212, 213, 0.4);--lip-ic-lit:#021a1c;--lip-ic-body:#010708;--lip-ic-low:#010203;--lip-conn-lit:#021617;--lip-conn-body:#010808;--lip-conn-low:#000101;--lip-can:#010f0f;--lip-can-rim:#000404;--lip-steel-lo:#02191b;--lip-smd:#000505;--lip-pad:rgba(41, 128, 149, 0.3);--lip-ink:rgba(219, 236, 239, 0.72);--lip-art-rim:rgba(120, 195, 205, 0.22);--pcb-1:#33606d;--pcb-2:#2a1f2a;--pcb-3:#020203;--pcb-trace:rgba(67, 102, 128, 0.72);--pcb-trace-dim:rgba(56, 60, 79, 0.5);--pcb-etch:rgba(1, 2, 2, 0.3);--pcb-ic:#00090b;--pcb-leg:rgba(15, 98, 106, 0.42);--pcb-gold:rgba(11, 141, 174, 0.78);--pcb-steel:rgba(19, 127, 139, 0.26)}
+.pl-blue{--bigly-red-rgb:82 126 213;--sw:#527ED5;--lip-edge:rgba(138, 182, 250, 0.5);--lip-sheen:rgba(169, 202, 249, 0.26);--lip-1:#132e5f;--lip-2:#061a35;--lip-3:#031326;--lip-4:#010c1a;--lip-film-1:rgba(74, 133, 237, 0.15);--lip-film-2:rgba(49, 88, 179, 0.21);--lip-film-3:rgba(11, 35, 75, 0.5);--lip-deep:rgba(11, 35, 75, 0.88);--lip-lamp:rgba(125, 173, 251, 0.13);--lip-rim:rgba(118, 178, 251, 0.3);--lip-under:rgba(2, 21, 46, 0.75);--lip-bloom:rgba(109, 172, 251, 0.2);--lip-gloss:rgba(209, 228, 251, 0.14);--lip-gloss-hi:rgba(231, 241, 252, 0.22);--lip-bubble:rgba(183, 212, 250, 0.13);--lip-lit-in:rgba(164, 206, 249, 0.4);--lip-ic-lit:#06162a;--lip-ic-body:#01060f;--lip-ic-low:#010205;--lip-conn-lit:#051324;--lip-conn-body:#010610;--lip-conn-low:#000103;--lip-can:#010d1a;--lip-can-rim:#000409;--lip-steel-lo:#061529;--lip-smd:#00040b;--lip-pad:rgba(87, 110, 188, 0.3);--lip-ink:rgba(222, 233, 252, 0.72);--lip-art-rim:rgba(138, 182, 250, 0.22);--pcb-1:#495584;--pcb-2:#331b1d;--pcb-3:#030203;--pcb-trace:rgba(99, 88, 141, 0.72);--pcb-trace-dim:rgba(75, 53, 75, 0.5);--pcb-etch:rgba(1, 2, 3, 0.3);--pcb-ic:#010713;--pcb-leg:rgba(45, 86, 144, 0.42);--pcb-gold:rgba(99, 116, 223, 0.78);--pcb-steel:rgba(62, 112, 187, 0.26)}
+.pl-green{--bigly-red-rgb:141 203 86;--sw:#8DCB56;--lip-edge:rgba(148, 198, 111, 0.5);--lip-sheen:rgba(179, 212, 152, 0.26);--lip-1:#183a00;--lip-2:#102000;--lip-3:#0d1601;--lip-4:#080e00;--lip-film-1:rgba(82, 159, 5, 0.15);--lip-film-2:rgba(40, 113, 2, 0.21);--lip-film-3:rgba(20, 44, 1, 0.5);--lip-deep:rgba(20, 44, 1, 0.88);--lip-lamp:rgba(134, 192, 92, 0.13);--lip-rim:rgba(147, 192, 86, 0.3);--lip-under:rgba(14, 26, 0, 0.75);--lip-bloom:rgba(138, 188, 72, 0.2);--lip-gloss:rgba(218, 232, 201, 0.14);--lip-gloss-hi:rgba(236, 243, 228, 0.22);--lip-bubble:rgba(195, 219, 170, 0.13);--lip-lit-in:rgba(189, 212, 148, 0.4);--lip-ic-lit:#0f1a00;--lip-ic-body:#040700;--lip-ic-low:#010301;--lip-conn-lit:#0d1601;--lip-conn-body:#040800;--lip-conn-low:#010100;--lip-can:#0b0e00;--lip-can-rim:#030400;--lip-steel-lo:#0e1901;--lip-smd:#030400;--lip-pad:rgba(49, 136, 54, 0.3);--lip-ink:rgba(224, 238, 216, 0.72);--lip-art-rim:rgba(148, 198, 111, 0.22);--pcb-1:#336638;--pcb-2:#112438;--pcb-3:#010302;--pcb-trace:rgba(13, 115, 86, 0.72);--pcb-trace-dim:rgba(12, 70, 74, 0.5);--pcb-etch:rgba(1, 2, 1, 0.3);--pcb-ic:#040900;--pcb-leg:rgba(60, 100, 2, 0.42);--pcb-gold:rgba(5, 154, 61, 0.78);--pcb-steel:rgba(76, 130, 5, 0.26)}
+.pl-amber{--bigly-red-rgb:235 168 68;--sw:#EBA844;--lip-edge:rgba(255, 148, 113, 0.5);--lip-sheen:rgba(255, 178, 156, 0.26);--lip-1:#551b01;--lip-2:#350900;--lip-3:#280401;--lip-4:#1c0201;--lip-film-1:rgba(227, 83, 6, 0.15);--lip-film-2:rgba(156, 61, 0, 0.21);--lip-film-3:rgba(68, 18, 1, 0.5);--lip-deep:rgba(68, 18, 1, 0.88);--lip-lamp:rgba(255, 134, 92, 0.13);--lip-rim:rgba(255, 136, 108, 0.3);--lip-under:rgba(46, 5, 0, 0.75);--lip-bloom:rgba(255, 126, 96, 0.2);--lip-gloss:rgba(255, 216, 207, 0.14);--lip-gloss-hi:rgba(254, 235, 231, 0.22);--lip-bubble:rgba(255, 193, 178, 0.13);--lip-lit-in:rgba(254, 180, 168, 0.4);--lip-ic-lit:#2c0702;--lip-ic-body:#100201;--lip-ic-low:#050100;--lip-conn-lit:#260603;--lip-conn-body:#110201;--lip-conn-low:#040000;--lip-can:#1d0304;--lip-can-rim:#0b0101;--lip-steel-lo:#2b0702;--lip-smd:#0d0101;--lip-pad:rgba(181, 83, 2, 0.3);--lip-ink:rgba(254, 225, 216, 0.72);--lip-art-rim:rgba(255, 148, 113, 0.22);--pcb-1:#864312;--pcb-2:#072b18;--pcb-3:#030201;--pcb-trace:rgba(133, 86, 3, 0.72);--pcb-trace-dim:rgba(66, 64, 15, 0.5);--pcb-etch:rgba(3, 1, 1, 0.3);--pcb-ic:#140200;--pcb-leg:rgba(151, 45, 6, 0.42);--pcb-gold:rgba(194, 97, 2, 0.78);--pcb-steel:rgba(193, 61, 3, 0.26)}
+.pl-smoke{--bigly-red-rgb:124 133 143;--sw:#7C858F;--lip-edge:rgba(174, 182, 190, 0.5);--lip-sheen:rgba(195, 201, 207, 0.26);--lip-1:#2c3137;--lip-2:#171b1e;--lip-3:#101315;--lip-4:#090c0d;--lip-film-1:rgba(127, 138, 151, 0.15);--lip-film-2:rgba(87, 95, 107, 0.21);--lip-film-3:rgba(33, 38, 43, 0.5);--lip-deep:rgba(33, 38, 43, 0.88);--lip-lamp:rgba(165, 174, 184, 0.13);--lip-rim:rgba(166, 176, 185, 0.3);--lip-under:rgba(19, 22, 25, 0.75);--lip-bloom:rgba(160, 171, 181, 0.2);--lip-gloss:rgba(223, 226, 229, 0.14);--lip-gloss-hi:rgba(238, 240, 241, 0.22);--lip-bubble:rgba(205, 210, 215, 0.13);--lip-lit-in:rgba(195, 202, 208, 0.4);--lip-ic-lit:#131618;--lip-ic-body:#050607;--lip-ic-low:#020202;--lip-conn-lit:#101315;--lip-conn-body:#050607;--lip-conn-low:#010101;--lip-can:#0a0c0e;--lip-can-rim:#030304;--lip-steel-lo:#131518;--lip-smd:#030404;--lip-pad:rgba(110, 116, 126, 0.3);--lip-ink:rgba(231, 233, 235, 0.72);--lip-art-rim:rgba(174, 182, 190, 0.22);--pcb-1:#55585f;--pcb-2:#252222;--pcb-3:#020202;--pcb-trace:rgba(96, 97, 104, 0.72);--pcb-trace-dim:rgba(63, 61, 64, 0.5);--pcb-etch:rgba(1, 2, 2, 0.3);--pcb-ic:#060709;--pcb-leg:rgba(80, 87, 95, 0.42);--pcb-gold:rgba(121, 128, 142, 0.78);--pcb-steel:rgba(105, 114, 123, 0.26)}
+.dev{border:0;-webkit-backdrop-filter:none;backdrop-filter:none;background:
+  radial-gradient(36% 18% at 30% 11%,rgb(255 255 255/.30),transparent 70%),
+  linear-gradient(180deg,var(--lip-sheen),transparent 30px),
+  radial-gradient(56px 20px at 17% 72%,var(--lip-bubble),transparent 70%),
+  radial-gradient(38px 15px at 72% 24%,var(--lip-bubble),transparent 70%),
+  linear-gradient(114deg,transparent 0 6%,var(--lip-gloss) 15%,var(--lip-gloss-hi) 20%,var(--lip-gloss) 26%,transparent 41%,transparent 64%,var(--lip-gloss) 73%,transparent 85% 100%),
+  radial-gradient(45% 50% at 24% 0%,var(--lip-lamp),transparent 68%),
+  linear-gradient(90deg,var(--lip-deep) 0%,transparent 28%,transparent 72%,var(--lip-deep) 100%),
+  linear-gradient(180deg,var(--lip-film-1) 0%,var(--lip-film-2) 46%,var(--lip-film-3) 100%),
+  repeating-linear-gradient(0deg,var(--pcb-leg) 0 2px,transparent 2px 5.5px) 7% 128px/30px 46px no-repeat,
+  linear-gradient(90deg,var(--lip-ic-lit) 0 1.5px,var(--lip-ic-body) 2px,var(--lip-ic-low) 100%) 9% 130px/20px 42px no-repeat,
+  repeating-linear-gradient(0deg,var(--pcb-leg) 0 2px,transparent 2px 5.5px) 94% 70px/24px 30px no-repeat,
+  linear-gradient(90deg,var(--lip-ic-lit) 0 1.5px,var(--lip-ic-body) 2px,var(--lip-ic-low) 100%) 93% 72px/16px 26px no-repeat,
+  radial-gradient(circle,var(--lip-can) 38%,var(--lip-can-rim) 45%,transparent 47%) 92% 170px/26px 26px no-repeat,
+  linear-gradient(150deg,var(--pcb-steel),var(--lip-steel-lo)) 90% 210px/14px 30px no-repeat,
+  repeating-linear-gradient(90deg,var(--pcb-gold) 0 1.5px,transparent 1.5px 4px) 50% calc(100% - 9px)/76px 8px no-repeat,
+  linear-gradient(180deg,var(--lip-conn-lit) 0 1.5px,var(--lip-conn-body) 2px,var(--lip-conn-low) 100%) 50% calc(100% - 6px)/86px 13px no-repeat,
+  repeating-linear-gradient(90deg,var(--lip-pad) 0 3px,transparent 3px 11px) 30% 22px/44px 6px no-repeat,
+  linear-gradient(0deg,var(--lip-smd),var(--lip-smd)) 12% 210px/9px 4px no-repeat,
+  linear-gradient(0deg,var(--lip-smd),var(--lip-smd)) 70% 18px/9px 4px no-repeat,
+  linear-gradient(0deg,var(--lip-smd),var(--lip-smd)) 88% 250px/9px 4px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace),var(--pcb-trace)) 22% 34px/38% 1.5px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace-dim),var(--pcb-trace-dim)) 30% 40px/30% 1.5px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace),var(--pcb-trace)) 76% 46px/22% 1.5px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace-dim),var(--pcb-trace-dim)) 6% 60px/1.5px 64px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace),var(--pcb-trace)) 95% 106px/1.5px 60px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace-dim),var(--pcb-trace-dim)) 8% 182px/1.5px 90px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace),var(--pcb-trace)) 30% calc(100% - 30px)/40% 1.5px no-repeat,
+  linear-gradient(0deg,var(--pcb-trace-dim),var(--pcb-trace-dim)) 70% calc(100% - 36px)/34% 1.5px no-repeat,
+  radial-gradient(40% 30% at 26% 0%,var(--pcb-1),transparent 70%),
+  linear-gradient(180deg,var(--pcb-2),var(--pcb-3));
+  box-shadow:inset 0 0 0 1px var(--lip-rim),inset 0 3px 0 var(--lip-lit-in),inset 0 -5px 0 var(--lip-under),inset 0 0 14px var(--lip-bloom),0 16px 26px -10px var(--lip-edge),0 4px 8px rgb(0 0 0/.18)}
+.dev[aria-current="true"]{box-shadow:inset 0 0 0 1px var(--lip-rim),inset 0 3px 0 var(--lip-lit-in),inset 0 -5px 0 var(--lip-under),inset 0 0 14px var(--lip-bloom),0 16px 26px -10px var(--lip-edge)}
+.dev::after{background:linear-gradient(180deg,rgb(255 255 255/.07),rgb(255 255 255/.02));box-shadow:inset 0 0 0 1px var(--lip-rim),inset 0 2px 4px rgb(0 0 0/.3)}
+.dev .icons{color:var(--lip-ink)}
+.dev .tag,.dev .name{text-shadow:0 1px 6px rgb(0 0 0/.55)}
+.plname{font:700 .56rem var(--pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--lip-ink);display:flex;align-items:center;gap:5px;margin-top:-2px}
+.plname i{width:9px;height:9px;border-radius:50%;background:var(--sw);box-shadow:0 0 0 1px rgb(255 255 255/.5)}
+.btn[aria-pressed="true"],.stamp{position:relative;isolation:isolate;color:#fff;border-color:transparent;text-shadow:0 1px 6px rgb(0 0 0/.55);
+  background:linear-gradient(180deg,var(--lip-sheen),transparent 14px),linear-gradient(114deg,transparent 10%,var(--lip-gloss-hi) 22%,transparent 40%),linear-gradient(180deg,var(--lip-film-1),var(--lip-film-3)),radial-gradient(60% 200% at 26% 0%,var(--pcb-1),transparent 70%),linear-gradient(180deg,var(--lip-1),var(--lip-4));
+  box-shadow:inset 0 0 0 1px var(--lip-rim),inset 0 2px 0 var(--lip-lit-in),inset 0 -3px 0 var(--lip-under),0 10px 22px -14px var(--lip-edge)}
+
+/* Jukebox Pis share one row and one plastic (Cherry Red), per BA 2026-10-11. */
+.jbox{grid-column:1/-1;min-width:0}
+.jlabel{display:block;font:700 .7rem var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 -18px 2px}
+.jrow{display:grid;grid-template-columns:repeat(4,minmax(200px,1fr));gap:22px;overflow-x:auto;padding:36px 6px 14px;scroll-snap-type:x mandatory}
+.jrow>.dev{scroll-snap-align:center}
+
+/* Simplified layout (2026-10-11): one status line, eggs, one detail card; extras folded away. */
+header{display:block}
+.status{margin:8px 0 0;font-size:1.05rem;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status .need{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:700;background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:3px 12px}
+.status .need:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.status .need .dot{width:10px;height:10px;border-radius:50%}
+.status .ok{color:var(--good);font-weight:700}
+.status .muted{color:var(--muted)}
+.jlabel,.olabel{display:block;font:700 .7rem var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.olabel{grid-column:1/-1;margin:0 0 -26px 2px}
+.dev .lcdtext{font-size:.66rem}
+.dev .todo-n{font:700 .6rem var(--pixel);text-transform:uppercase;color:var(--lip-ink);min-height:1em}
+.facts{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0 0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
+.facts li b{font-weight:700}
+.facts .warn{color:var(--warn)} .facts .bad{color:var(--bad)}
+.care .right{gap:18px}
+.svc{width:100%;border-collapse:collapse}
+.svc td{padding:5px 0;border-bottom:1px solid var(--line)}
+.svc td.st{text-align:right;font:700 .62rem var(--pixel);text-transform:uppercase;white-space:nowrap;padding-left:12px}
+.clean{font-size:.66rem;padding:4px 12px}
+.more{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 14px}
+.more>summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:1.1rem;padding:10px 0;list-style-position:inside}
+.more>summary:focus-visible{outline:3px solid var(--warn);outline-offset:2px;border-radius:6px}
+.more[open]>summary{border-bottom:1px solid var(--line)}
+.more .diary{border:0;border-radius:0;background:none}
+.more .diary li{padding-inline:0}
+.more .legend{padding:12px 0 14px}
+.more .leg{background:var(--bg);border:0}
+.foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;color:var(--muted);font-size:.9rem}
+.foot p{margin:0;max-width:60ch}
+.foot .btn{font-size:.85rem;padding:4px 12px}
+@media (max-width:560px){
+  .shelf{grid-template-columns:repeat(2,minmax(0,1fr));gap:30px 12px}
+  .jrow{grid-template-columns:repeat(4,150px);gap:12px;padding-top:30px}
+  .dev{padding:26px 10px 16px;gap:5px}
+  .dev .screen{width:92px;padding:5px}
+  .dev .name{font-size:.95rem}
+  .dev .hwrow{gap:10px}.dev .hw{width:18px;height:18px;font-size:0}
+  .dev .hw:nth-child(2){margin-top:6px}
+  .olabel{margin-bottom:-20px}
+}
+
+/* Restart controls: only shown when the restart helper answers and your login is allowed. */
+.power{margin:14px 0 0}
+.confirm{margin:14px 0 0;padding:12px 14px;border:2px solid var(--warn);border-radius:12px;background:var(--card)}
+.confirm p{margin:0 0 10px}
+#allbox{margin:0}
+.btn.primary{background:var(--fg);color:var(--bg)}
+.power-msg{margin:14px 0 0;font-weight:700;color:var(--good)} .power-msg.bad{color:var(--bad)}
+</style>
+
+</head><body>
+<div class="wrap pl-red">
+  <header>
+    <h1>Bigly Piez</h1>
+    <p class="status" id="status" aria-live="polite"></p>
+  </header>
+
+  <div class="shelf" id="shelf"></div>
+  <section class="care" id="care" aria-live="polite"></section>
+  <div class="confirm" id="allbox" hidden></div>
+
+  <details class="more">
+    <summary>Pet diary</summary>
+    <ul class="diary" id="diary"></ul>
+  </details>
+  <details class="more">
+    <summary>What the faces mean</summary>
+    <div class="legend" id="legend"></div>
+  </details>
+
+  <footer class="foot">
+    <p id="footnote">Only BigPi-001's numbers and the to-dos are real. Other numbers are samples, and nothing here talks to a Pi yet.</p>
+    <div class="toolbar">
+      <button class="btn" id="restartall" hidden>Restart all</button>
+      <button class="btn" id="sound" aria-pressed="true">Sound on</button>
+      <button class="btn" id="badday" aria-pressed="false">Preview a bad day</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+// Pet data. src says which numbers are real. todo = [who, text]; these are real open items from PIS.md.
+const PETS=[
+ {id:"anchor",name:"AnchorPi",tag:"Jukebox house Pi",shell:"--shell-a",hat:"crown",src:"Sample numbers",online:true,temp:54,disk:41,seen:"just now",born:"before 09-27",
+  svc:[["Jukebox :8080",1],["MPD x4 rooms",1],["Room streams",1],["Caddy :80",1],["AnchorForge",1]],
+  says:"I'm the boss of the house music. No new roommates, please!",
+  todo:[["BA","Decide if wlan0 gets turned off (it's on Wi-Fi and cable at once)"],["Claude","Confirm the old Biglypedia copy here is stopped"]]},
+ {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real checkup 10-09",online:true,temp:68,disk:9,seen:"10-09",born:"10-02",awake:"10-07",
+  svc:[["Biglypedia 8470/8471",1],["BiglyBank 8790",1],["Bigly Games 4173",1],["BNN signage 8095",1],["Postgres 17",1],["Portal 8090/8091",0,"off on purpose"]],
+  says:"All my chores are done, but it's toasty in here. Fan, please!",
+  todo:[["BA","Install the Pi 5 Active Cooler, then re-check temp"],["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
+ {id:"bigpi2",name:"BigPi-002",tag:"DevHub",shell:"--shell-d",hat:"hardhat",src:"Sample numbers",online:true,temp:49,disk:22,seen:"just now",born:"unknown",
+  svc:[["DevHub",1]],says:"I'm the workshop. New apps can move in here!",todo:[]},
+ {id:"room2",name:"Marketing",tag:"room2 speaker",shell:"--shell-c",hat:"phones",src:"Sample numbers",online:true,temp:47,disk:30,seen:"just now",born:"unknown",wifiFlaky:true,
+  svc:[["Room player",1]],says:"The Wi-Fi keeps making my music skip!",
+  todo:[["BA","Plug in the USB Ethernet adapter when it arrives"]]},
+ {id:"room3",name:"Fulfillment",tag:"room3 speaker",shell:"--shell-e",hat:"phones",src:"Sample numbers",online:true,temp:45,disk:28,seen:"just now",born:"unknown",
+  svc:[["Room player",1]],says:"La la la. Healthy since 09-30!",
+  todo:[["BA","OK the Wi-Fi route fix (route-metric 100 on wlan1)"]]},
+ {id:"room4",name:"Cust. Service",tag:"room4 speaker",shell:"--shell-f",hat:"phones",src:"Never checked",unknown:true,svc:[],
+  says:"Who am I? Nobody has checked on me yet.",todo:[["BA","Tell Claude room4's details"]]},
+ {id:"signage",name:"Signage Pi",tag:"TV Pi (planned)",shell:"--shell-h",src:"Planned",egg:true,svc:[],
+  says:"I'll hatch into the BNN TV pet. Did anyone buy me yet?",todo:[["BA","Confirm the signage Pi was bought"],["Claude","Move BNN here from BigPi-001"]]}
+];
+const BAD={anchor:{online:false,seen:"12 min ago"},bigpi2:{disk:96},room3:{svc:[["Room player",0]]}};
+// Real events from PIS.md and the 10-09 checkup.
+const DIARY=[
+ ["10-09","BigPi-001","Checkup: every chore done, 68°C with no fan, disk 9% full."],
+ ["10-07","BigPi-001","Was shut down and power-cycled. Nobody knows why yet."],
+ ["10-05","AnchorPi","Got its own reserved address, .243."],
+ ["10-02","BigPi-001","Hatched! Set up as the new server Pi."],
+ ["09-30","Fulfillment","Checked and healthy."],
+ ["09-27","AnchorPi","Retired Biglydex v1. It now shows a \"moved\" page."]
+];
+
+function moodOf(p){
+  if(p.egg)return"egg"; if(p.unknown)return"mystery"; if(!p.online)return"asleep";
+  if(p.svc.some(s=>!s[1]&&!s[2])||p.temp>=80||p.disk>=95)return"sick";
+  if(p.wifiFlaky)return"dizzy";
+  if(p.temp>=65||p.disk>=85)return"sweaty";
+  if(p.temp>=58||p.disk>=70)return"ok";
+  return"happy";
+}
+const MOODS={
+ happy:{label:"Happy",tone:"--good",why:"Online, cool, roomy, all chores done."},
+ ok:{label:"Fine",tone:"--good",why:"A bit warm or a bit full. Nothing to do yet."},
+ sweaty:{label:"Too warm",tone:"--warn",why:"65°C or hotter, or disk 85%+ full."},
+ dizzy:{label:"Dizzy",tone:"--warn",why:"Network is flaky, like room2's Wi-Fi."},
+ sick:{label:"Sick",tone:"--bad",why:"A service is down, 80°C+, or disk 95%+."},
+ asleep:{label:"Asleep",tone:"--bad",why:"Offline. It stopped answering."},
+ mystery:{label:"Unknown",tone:"--idle",why:"Never checked, so we can't tell."},
+ egg:{label:"Not hatched",tone:"--idle",why:"Planned or not set up yet."}
+};
+const ORDER=["sick","asleep","sweaty","dizzy","ok","happy","mystery","egg"];
+const BADSAYS={asleep:"Zzz... I stopped answering.",sick:"I don't feel good. Something is broken."};
+
+// Sprites. Canvas is 20x20; body is 16x16 drawn at (2, 3+bob).
+const BODY=["................","......####......","....##....##....","...#........#...","..#..........#..",".#............#.",".#............#.","#..............#","#..............#","#..............#",".#............#.",".#............#.","..##........##..","....#.#..#.#....","....##....##....","................"];
+const EGG=["....####....","...#....#...","..#......#..",".#........#.",".#........#.","#..........#","#..#....#..#","#..........#","#....##....#","#..........#",".#........#.",".#........#.","..#......#..","...######..."];
+const Q=[".##.","#..#","..#.","....","..#."];
+const POOP=[".#..",".##.","####"];
+const FACE={
+ happy:[[4,7],[5,6],[6,7],[9,7],[10,6],[11,7],[6,9],[7,10],[8,10],[9,9]],
+ ok:[[5,6],[5,7],[10,6],[10,7],[7,10],[8,10]],
+ sweaty:[[5,6],[5,7],[10,6],[10,7],[6,10],[7,9],[8,9],[9,10]],
+ dizzy:[[4,6],[5,6],[6,7],[5,8],[9,6],[10,6],[11,7],[10,8],[6,10],[7,10],[8,10],[9,10]],
+ sick:[[4,6],[6,6],[5,7],[4,8],[6,8],[9,6],[11,6],[10,7],[9,8],[11,8],[6,10],[7,9],[8,9],[9,10]],
+ asleep:[[4,7],[5,7],[6,7],[9,7],[10,7],[11,7],[7,10],[8,10]]
+};
+const HATS={
+ crown:[[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[5,-1],[7,-1],[8,-1],[10,-1],[5,-2],[10,-2]],
+ antenna:[[7,0],[7,-1],[6,-2],[7,-2],[8,-2],[7,-3]],
+ hardhat:[[4,1],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,1],[6,-1],[7,-1],[8,-1],[9,-1],[3,1],[12,1]],
+ phones:[[5,0],[6,-1],[7,-1],[8,-1],[9,-1],[10,0],[4,1],[11,1],[3,2],[12,2],[0,5],[0,6],[-1,5],[-1,6],[15,5],[15,6],[16,5],[16,6]]
+};
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let pix=getComputedStyle(document.documentElement).getPropertyValue("--pix").trim()||"#27311c";
+
+function draw(ctx,mood,f,hat,poops){
+  ctx.setTransform(5,0,0,5,0,0); ctx.clearRect(0,0,20,20); ctx.fillStyle=pix;
+  ctx.shadowColor="transparent"; ctx.globalAlpha=.07; for(let gy=0;gy<20;gy++)for(let gx=0;gx<20;gx++)ctx.fillRect(gx+.08,gy+.08,.84,.84);
+  ctx.globalAlpha=1; ctx.shadowColor="rgba(0,0,0,.22)"; ctx.shadowOffsetX=1.5; ctx.shadowOffsetY=1.5;
+  const P=(x,y)=>ctx.fillRect(x+.08,y+.08,.84,.84);
+  for(let i=0;i<Math.min(poops||0,2);i++)POOP.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==="#")P((i?16:0)+x,17+y)}));
+  if(mood==="egg"||mood==="mystery"){
+    const ox=4+(mood==="egg"&&f%4===1?1:mood==="egg"&&f%4===3?-1:0), oy=3;
+    EGG.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==="#"&&!(mood==="mystery"&&y>=5&&y<=8&&x>0&&x<11))P(ox+x,oy+y)}));
+    if(mood==="mystery")Q.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==="#")P(ox+4+x,oy+4+y)}));
+    return;
+  }
+  let dx=2,dy=2;
+  if(mood==="happy")dy=f%2?1:3; else if(mood==="ok"||mood==="sweaty"||mood==="dizzy")dy=f%2?2:3;
+  if(mood==="sick")dx=f%2?1:3;
+  BODY.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==="#")P(dx+x,dy+y)}));
+  FACE[mood].forEach(([x,y])=>P(dx+x,dy+y));
+  if(hat)HATS[hat].forEach(([x,y])=>P(dx+x,dy+y));
+  if(mood==="sweaty")[[18,6],[18,7],[19,7],[1,8],[1,9]].forEach(([x,y])=>P(x,y+(f%2)));
+  if(mood==="happy"&&f%2)[[1,3],[0,4],[2,4],[1,5],[18,3],[17,4],[19,4],[18,5]].forEach(([x,y])=>P(x,y));
+  if(mood==="dizzy")(f%2?[[1,1],[17,0]]:[[3,0],[18,2]]).forEach(([x,y])=>{P(x,y);P(x+1,y);P(x,y+1)});
+  if(mood==="asleep"){const z=f%2?0:1;[[15,0],[16,0],[17,0],[16,1],[15,2],[16,2],[17,2]].forEach(([x,y])=>P(x+z,y))}
+}
+
+// Sound: tiny square-wave beeps, only after a click.
+let soundOn=true, actx=null;
+function beep(notes){
+  if(!soundOn||reduce)return;
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    notes.forEach(([hz,at],i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type="square";o.frequency.value=hz;g.gain.value=.04;
+      o.connect(g);g.connect(actx.destination);const t=actx.currentTime+at;o.start(t);o.stop(t+.08)})}catch(e){soundOn=false}
+}
+const SFX={a:[[880,0]],pet:[[660,0],[990,.09]],care:[[523,0],[784,.09]],clean:[[784,0],[1047,.08],[1319,.16]],egg:[[392,0],[349,.1]]};
+
+let bad=false, sel="bigpi1", frame=0, cleaned={};
+// LIVE comes from the restart helper (/api/status) when it runs; without it the page stays sample-only.
+let LIVE=null, pending={}, confirming=null;
+// HEALTH comes from the helper's /api/health (read-only numbers, refreshed every 2 minutes); null = samples only.
+let HEALTH=null;
+const liveOf=id=>LIVE&&LIVE.pis[id]&&typeof LIVE.pis[id].online==="boolean"?LIVE.pis[id]:null;
+const healthOf=id=>HEALTH&&HEALTH.pis[id]&&HEALTH.pis[id].ok?HEALTH.pis[id]:null;
+const live=()=>PETS.map(p=>{let q=bad&&BAD[p.id]?{...p,...BAD[p.id]}:p;const L=liveOf(p.id),N=healthOf(p.id);
+  if(L&&!bad&&!q.egg&&!q.unknown)q={...q,online:L.online,live:(L.online?"answering":"not answering")+" at "+LIVE.checked};
+  if(N&&!bad&&!q.egg&&!q.unknown&&q.online!==false)q={...q,src:"Live numbers at "+HEALTH.checked,temp:N.temp_c,disk:N.disk_pct,cpu:N.cpu_pct,mem:N.mem_pct,up:N.up_s,real:true};
+  else if(HEALTH&&HEALTH.pis[p.id]&&HEALTH.pis[p.id].why==="setup"&&!bad)q={...q,src:q.src+" (needs the health update)"};
+  return q});
+const upText=s=>s>=172800?Math.floor(s/86400)+" days":s>=7200?Math.floor(s/3600)+" hours":Math.max(1,Math.floor(s/60))+" min";
+const num=(v,unit)=>v==null?"?":v+unit;
+const canRestart=id=>LIVE&&LIVE.allowed&&LIVE.pis[id]&&LIVE.pis[id].can;
+const reachable=id=>canRestart(id)&&LIVE.pis[id].online!==false;
+const WARN={anchor:"All room music stops until it's back.",bigpi2:"This page lives here, so it goes away for a few minutes too.",bigpi1:"Biglypedia, the bank and games pause until it's back."};
+const openTodos=p=>p.todo.filter((t,i)=>!cleaned[p.id+i]);
+
+const PL={"--shell-a":["red","Cherry Red"],"--shell-b":["amber","Amber Orange"],"--shell-d":["purple","Atomic Purple"],"--shell-c":["cyan","Ice Cyan"],"--shell-e":["green","Lime Green"],"--shell-f":["smoke","Graphite Smoke"],"--shell-h":["blue","Cobalt Blue"],"--shell-g":["clear","Natural Clear"]};
+const JUKE=new Set(["anchor","room2","room3","room4"]);
+const plOf=p=>JUKE.has(p&&p.id)?PL["--shell-a"]:(PL[p&&p.shell]||PL["--shell-a"]);
+function render(){
+  {const sp=PETS.find(x=>x.id===sel);document.getElementById("care").className="care pl-"+plOf(sp)[0]}
+  const pets=live(), shelf=document.getElementById("shelf"), counts={};
+  shelf.innerHTML="";
+  const jbox=document.createElement("div"),jrow=document.createElement("div");jbox.className="jbox";jrow.className="jrow";
+  jbox.innerHTML='<span class="jlabel">Jukebox Pis</span>';jrow.setAttribute("aria-label","Jukebox Pis");jbox.appendChild(jrow);shelf.appendChild(jbox);
+  pets.forEach(p=>{
+    const m=moodOf(p), poops=openTodos(p).length; counts[m]=(counts[m]||0)+1;
+    const b=document.createElement("button"); b.className="dev pl-"+plOf(p)[0]; b.id="dev-"+p.id; 
+    b.setAttribute("aria-current",p.id===sel);b.setAttribute("aria-label",`${p.name}: ${MOODS[m].label}, ${poops} to-do${poops===1?"":"s"}. Show details`);
+    b.innerHTML=`<span class="screen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="${poops}"></canvas><span class="lcdtext">${MOODS[m].label}</span></span>
+      <span class="name">${p.name}</span><span class="todo-n">${poops?`💩 ${poops} to-do${poops>1?"s":""}`:""}</span>
+      <span class="hwrow" aria-hidden="true"><span class="hw">A</span><span class="hw">B</span><span class="hw">C</span></span>`;
+    b.onclick=e=>act("care",p,e);
+    (JUKE.has(p.id)?jrow:shelf).appendChild(b);
+  });
+  const ol=document.createElement("span");ol.className="olabel";ol.textContent="Other Pis";jbox.after(ol);
+  const allPoops=pets.reduce((n,p)=>n+openTodos(p).length,0);
+  const need=pets.filter(p=>["sick","asleep","sweaty","dizzy"].includes(moodOf(p)));
+  const st=document.getElementById("status");
+  st.innerHTML=(need.length?`<span>Needs a look:</span>${need.map(p=>`<button class="need" data-id="${p.id}"><span class="dot" style="background:var(${MOODS[moodOf(p)].tone})"></span>${p.name}: ${MOODS[moodOf(p)].label.toLowerCase()}</button>`).join("")}`
+    :`<span class="ok">All Pis look fine.</span>`)+`<span class="muted">${allPoops} open to-do${allPoops===1?"":"s"}</span>`;
+  st.querySelectorAll(".need").forEach(b=>b.onclick=e=>{const id=b.dataset.id;act("care",pets.find(p=>p.id===id),e);document.getElementById("care").scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})});
+  renderCare(pets.find(p=>p.id===sel)); paint();
+}
+function floatAt(e,ch){
+  const r=e.target.getBoundingClientRect(),h=document.createElement("span");h.className="float";h.textContent=ch;
+  h.style.left=(e.clientX||r.left+r.width/2)+"px";h.style.top=(e.clientY||r.top)+"px";document.body.appendChild(h);setTimeout(()=>h.remove(),1000);
+}
+function act(a,p,e){
+  beep(SFX.care);sel=p.id;render();if(e.type!=="click"||e.target.closest(".dev"))document.getElementById("dev-"+p.id)?.focus({preventScroll:true});
+  if(e.type==="click"&&innerWidth<760)document.getElementById("care").scrollIntoView({behavior:reduce?"auto":"smooth"});
+}
+function wobble(id){const d=document.getElementById("dev-"+id);d.classList.remove("wobble");void d.offsetWidth;d.classList.add("wobble")}
+
+function renderCare(p){
+  const m=moodOf(p), M=MOODS[m], c=document.getElementById("care"), isEgg=p.egg||p.unknown;
+  const said=(bad&&BADSAYS[m])||p.says, up=p.svc.filter(x=>x[1]).length, need=p.svc.filter(x=>!x[2]).length;
+  const cls=(v,w,b)=>v>=b?"bad":v>=w?"warn":"";
+  c.innerHTML=`<div><h2>${p.name}</h2><p class="meta">${p.tag} · ${p.src}${p.live?` · ${p.live}`:p.seen?` · last heard ${p.seen}`:""}</p>
+    <div class="hero"><div class="bigscreen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="0"></canvas></div><div class="bubble">${said}</div></div>
+    <p class="mood" style="color:var(${M.tone})">${M.label}: ${M.why}</p>
+    ${isEgg?"":`<ul class="facts"><li class="${p.online?"":"bad"}"><b>${p.online?"Online":"Offline"}</b></li><li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>${p.real?`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`:""}${p.online?`<li class="${up<need?"bad":""}">Services <b>${up}/${need}</b> up</li>`:""}</ul>`}
+    ${canRestart(p.id)?powerRow(p):""}</div>
+    <div class="right">
+      <div><span class="label">To-dos</span>${p.todo.length?`<ul class="todos">${p.todo.map((t,i)=>`<li class="${cleaned[p.id+i]?"done":""}"><span class="who">${t[0]}</span><span class="txt">${t[1]}</span><button class="clean" data-k="${p.id+i}" aria-pressed="${!!cleaned[p.id+i]}" aria-label="${cleaned[p.id+i]?"Undo":"Mark done"}: ${t[1].replace(/"/g,"&quot;")}">${cleaned[p.id+i]?"Undo":"Done"}</button></li>`).join("")}</ul>`:`<p class="meta">Nothing to do.</p>`}</div>
+      ${p.svc.length?`<div><span class="label">Services</span><table class="svc"><tbody>${p.svc.map(s=>`<tr><td>${s[0]}</td>${!p.online?`<td class="st" style="color:var(--idle)">Can't tell</td>`:`<td class="st" style="color:var(${s[1]?"--good":s[2]?"--idle":"--bad"})">${s[1]?"Up":s[2]?"Off ("+s[2]+")":"Down"}</td>`}</tr>`).join("")}</tbody></table></div>`:""}
+    </div>`;
+  c.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>onRestart(b.dataset.r,b.dataset.id));
+  c.querySelectorAll(".clean").forEach(b=>b.onclick=e=>{const k=b.dataset.k;cleaned[k]=!cleaned[k];if(cleaned[k]){beep(SFX.clean);floatAt(e,"✨")}render();const n=c.querySelector(`.clean[data-k="${k}"]`);if(n)n.focus()});
+}
+function powerRow(p){
+  const P=pending[p.id];
+  if(P)return `<p class="power-msg ${P.bad?"bad":""}" role="status">${P.msg}</p>`;
+  if(LIVE.pis[p.id].online===false)return `<p class="power-msg bad">Not answering, so Restart can't reach it. Unplug it and plug it back in.</p>`;
+  if(confirming===p.id)return `<div class="confirm"><p><b>Restart ${p.name}?</b> It should be back in about two minutes. ${WARN[p.id]||"What it runs pauses until then."}</p>
+    <button class="btn primary" data-r="go" data-id="${p.id}">Yes, restart</button> <button class="btn" data-r="cancel" data-id="${p.id}">Cancel</button></div>`;
+  return `<p class="power"><button class="btn" data-r="ask" data-id="${p.id}">Restart</button></p>`;
+}
+function onRestart(step,id){
+  if(step==="ask"){confirming=id;render();document.querySelector('#care [data-r="go"]')?.focus();return}
+  if(step==="cancel"){confirming=null;render();document.querySelector('#care [data-r="ask"]')?.focus();return}
+  confirming=null;sendRestart(id);
+}
+async function sendRestart(target){
+  const ids=target==="all"?Object.keys(LIVE.pis).filter(reachable):[target];
+  ids.forEach(id=>pending[id]={msg:"Sending restart…"});render();
+  let res;
+  try{const r=await fetch("api/restart",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pi:target,confirm:target})});res=await r.json();if(!r.ok&&!res.results)throw new Error(res.error||r.status)}
+  catch(e){ids.forEach(id=>pending[id]={msg:"Couldn't send the restart: "+(e.message||"no answer")+". Nothing changed.",bad:true});render();setTimeout(()=>{ids.forEach(id=>delete pending[id]);render()},8000);return}
+  const name=id=>(PETS.find(p=>p.id===id)||{name:id}).name;
+  Object.entries(res.results).forEach(([id,r])=>pending[id]=r.ok?{msg:`${r.msg} Watching for ${name(id)} to come back…`,since:Date.now(),seenDown:false}:{msg:r.msg,bad:true});
+  const failed=Object.keys(res.results).filter(id=>!res.results[id].ok);
+  if(failed.length)setTimeout(()=>{failed.forEach(id=>{if(pending[id]&&pending[id].bad)delete pending[id]});render()},15000);
+  if(target==="all")showAllSent(ids);render();watch();
+}
+let watching=null;
+function watch(){
+  if(watching)return;
+  watching=setInterval(async()=>{
+    await refreshLive();
+    const now=Date.now();let open=0;
+    for(const [id,P] of Object.entries(pending)){
+      if(!P.since){continue}
+      const L=liveOf(id),n=(PETS.find(p=>p.id===id)||{name:id}).name;
+      if(L&&!L.online)P.seenDown=true;
+      if(L&&L.online&&(P.seenDown||now-P.since>90000)){pending[id]={msg:`${n} is back online.`};setTimeout(()=>{delete pending[id];render()},10000)}
+      else if(now-P.since>300000){pending[id]={msg:`${n} hasn't come back after 5 minutes. Someone may need to unplug it and plug it back in.`,bad:true}}
+      else open++;
+    }
+    render();if(!open){clearInterval(watching);watching=null}
+  },10000);
+}
+async function refreshLive(){
+  if(location.protocol==="file:")return;
+  try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),20000);
+    const r=await fetch("api/status",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;LIVE=d}
+  catch(e){if(LIVE)LIVE={...LIVE,pis:Object.fromEntries(Object.entries(LIVE.pis).map(([k,v])=>[k,{...v,online:undefined}]))}}
+  const any=LIVE&&Object.keys(LIVE.pis).some(canRestart);
+  document.getElementById("restartall").hidden=!any;
+  footnote();
+}
+function footnote(){
+  if(!LIVE)return;
+  const n=PETS.filter(p=>healthOf(p.id)).length;
+  document.getElementById("footnote").textContent=`"Online" comes from a live check at ${LIVE.checked}${LIVE.dry?" (test mode: restarts are pretend)":""}. `
+    +(n?`Temperature, disk, CPU, memory and time on are live for ${n} Pi${n>1?"s":""} (checked ${HEALTH.checked}, every 2 minutes); a Pi that says "Sample numbers" isn't sending them yet. Services are still samples.`
+      :`Temperatures, disks and services are still samples, except BigPi-001's.`);
+}
+async function refreshHealth(){
+  if(location.protocol==="file:")return;
+  try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),45000);
+    const r=await fetch("api/health",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;HEALTH=d}
+  catch(e){HEALTH=null}
+  footnote();
+}
+function showAllSent(ids){
+  const box=document.getElementById("allbox"),names=ids.map(id=>(PETS.find(p=>p.id===id)||{name:id}).name);
+  box.hidden=false;box.innerHTML=`<p role="status">Restart sent to ${names.join(", ")}. Each Pi's card shows when it's back.</p><button class="btn" id="allclose">OK</button>`;
+  document.getElementById("allclose").onclick=()=>{box.hidden=true;document.getElementById("restartall").focus()};
+}
+function showAll(){
+  const nm=id=>(PETS.find(p=>p.id===id)||{name:id}).name,box=document.getElementById("allbox"),ids=Object.keys(LIVE.pis).filter(reachable),names=ids.map(nm);
+  const off=Object.keys(LIVE.pis).filter(id=>canRestart(id)&&!reachable(id)).map(nm);
+  box.hidden=false;
+  box.innerHTML=`<p><b>Restart all ${ids.length} Pis?</b> ${names.join(", ")}.${off.length?` ${off.join(", ")} ${off.length>1?"aren't":"isn't"} answering, so ${off.length>1?"they're":"it's"} skipped.`:""} All music stops for a couple of minutes, and this page goes away for a few minutes too (BigPi-002 goes last).</p>
+    <button class="btn primary" id="allgo">Yes, restart all</button> <button class="btn" id="allno">Cancel</button>`;
+  document.getElementById("allgo").onclick=()=>{box.hidden=true;sendRestart("all")};
+  document.getElementById("allno").onclick=()=>{box.hidden=true;document.getElementById("restartall").focus()};
+  box.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"});document.getElementById("allgo").focus();
+}
+function paint(){
+  pix=getComputedStyle(document.documentElement).getPropertyValue("--pix").trim()||pix;
+  document.querySelectorAll("canvas[data-m]").forEach(cv=>(cv.width!==100&&(cv.width=cv.height=100),draw)(cv.getContext("2d"),cv.dataset.m,frame,cv.dataset.hat,+cv.dataset.poop));
+}
+document.getElementById("diary").innerHTML=DIARY.map(([d,p,e])=>`<li><span class="d">${d}</span><span class="p">${p}</span><span class="e">${e}</span></li>`).join("");
+document.getElementById("legend").innerHTML=ORDER.map(m=>`<div class="leg"><canvas width="20" height="20" data-m="${m}" data-hat="" data-poop="0"></canvas><div><strong>${MOODS[m].label}</strong>${MOODS[m].why}</div></div>`).join("")
+  +`<div class="leg"><canvas width="20" height="20" data-m="ok" data-hat="" data-poop="2"></canvas><div><strong>Poops</strong>Each one is a to-do. Clean it when it's done.</div></div>`;
+document.getElementById("badday").onclick=e=>{bad=!bad;e.currentTarget.setAttribute("aria-pressed",bad);e.currentTarget.textContent=bad?"Back to normal":"Preview a bad day";beep(bad?SFX.egg:SFX.care);render()};
+document.getElementById("sound").onclick=e=>{soundOn=!soundOn;e.currentTarget.setAttribute("aria-pressed",soundOn);e.currentTarget.textContent=soundOn?"Sound on":"Sound off";beep(SFX.a)};
+render();
+if(!reduce)setInterval(()=>{frame++;paint()},600);
+document.getElementById("restartall").onclick=showAll;
+refreshLive().then(render);setInterval(()=>{if(!watching)refreshLive().then(render)},60000);
+refreshHealth().then(render);setInterval(()=>refreshHealth().then(render),120000);
+</script>
+
+</body></html>

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Forced command for the Bigly Piez restart key: it may only check in ("true"), read health numbers, or reboot.
+# Installed on each Pi the page can restart; anything else the key asks for is refused.
+case "$SSH_ORIGINAL_COMMAND" in
+  true) exit 0 ;;
+  health)
+    # Read-only: prints raw numbers (temp in millidegrees, two CPU samples 1s apart, memory kB, disk kB, uptime s).
+    echo "temp=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"
+    echo "cpu1=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat)"; sleep 1
+    echo "cpu2=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat)"
+    echo "mem=$(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{print t,a}' /proc/meminfo)"
+    echo "disk=$(df -Pk / | awk 'NR==2{print $2,$3,$4}')"
+    echo "up=$(cut -d' ' -f1 /proc/uptime)"
+    exit 0 ;;
+  "sudo -n /usr/bin/systemctl reboot") exec sudo -n /usr/bin/systemctl reboot ;;
+  *) echo "Bigly Piez key: not allowed" >&2; exit 1 ;;
+esac
