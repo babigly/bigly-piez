@@ -1,0 +1,230 @@
+name: Notify Slack on push
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: [ '.github/**' ]   # a push that only touches workflows is not a publish
+  workflow_dispatch:        # adds a manual "Run workflow" button in the Actions tab
+permissions:
+  contents: read
+  pull-requests: read       # to read the merged PR's title and Before/After description
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Slack
+        shell: python
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
+          SITE_LABEL: "Bigly Piez"
+          SITE_EMOJI: "🥧"
+          SITE_URL: https://bigpi-002.tail6c7763.ts.net:8450/
+          PYTHONIOENCODING: utf-8
+        # No @mention — BA asked to stop tagging the automation user (Slack ID U058JM4HP3R) in publish alerts.
+        # The alert leads with the merged PR's title and its plain-English Before/After; direct pushes fall
+        # back to the commit title and first paragraph, with trailers and internal section numbers removed.
+        run: |
+          import json, os, re, sys, urllib.error, urllib.request
+
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          SHA = os.environ["GITHUB_SHA"]
+          TOKEN = os.environ.get("GH_TOKEN", "")
+          LABEL = os.environ["SITE_LABEL"]
+          SITE = os.environ["SITE_URL"]
+          EMOJI = os.environ["SITE_EMOJI"]
+          WEBHOOK = os.environ.get("SLACK_WEBHOOK_URL", "")
+          DRY_RUN = os.environ.get("DRY_RUN") == "1"
+          GH = f"https://github.com/{REPO}"
+
+          if not WEBHOOK and not DRY_RUN:
+              print("::error::SLACK_WEBHOOK_URL secret is not set — NO Slack alert was sent. Add it in repo Settings → Secrets and variables → Actions.")
+              sys.exit(1)
+
+
+          def gh(path):
+              req = urllib.request.Request(
+                  f"https://api.github.com/repos/{REPO}/{path}",
+                  headers={"Authorization": f"Bearer {TOKEN}", "Accept": "application/vnd.github+json"},
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      return json.load(r)
+              except Exception as e:
+                  print(f"::warning::GitHub API {path} failed ({e}); using the push data only.")
+                  return None
+
+
+          # Internal markers that mean nothing to the channel: (§159), (section 156), §160, (v108), ARCHITECTURE 155, (#247).
+          JARGON = [
+              r"\s*\((?:§|section\s*)\s*\d+[a-z]?\)",
+              r",?\s*§\s*\d+[a-z]?",
+              r",?\s*\bsection\s+\d+\b",
+              r"\s*\(v\d+\)",
+              r"\s*\bARCHITECTURE\s+\d+\b",
+              r"\s*\(#\d+\)\s*$",
+          ]
+
+
+          def plain(s):
+              for p in JARGON:
+                  s = re.sub(p, "", s, flags=re.I)
+              s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)  # [text](url) -> text
+              s = s.replace("**", "").replace("`", "")
+              s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")  # Slack mrkdwn escaping
+              return " ".join(s.split())
+
+
+          def title(s):
+              s = plain(re.sub(r"^(chore|feat|fix|docs|refactor|style|test|build|ci|perf)(\([^)]*\))?!?:\s*", "", s, flags=re.I))
+              return s[:1].upper() + s[1:]
+
+
+          def sentences(s):
+              """Split on . ! ? — but never inside "quotes" or (brackets), after e.g./i.e., or inside numbers like 1.5."""
+              out, buf, depth, quoted = [], "", 0, False
+              for i, ch in enumerate(s):
+                  buf += ch
+                  if ch == '"':
+                      quoted = not quoted
+                  elif ch == "“":
+                      quoted = True
+                  elif ch == "”":
+                      quoted = False
+                  elif ch == "(":
+                      depth += 1
+                  elif ch == ")":
+                      depth = max(0, depth - 1)
+                  elif ch in ".!?" and not quoted and depth == 0 and (i + 1 == len(s) or s[i + 1] == " "):
+                      if not re.search(r"\b(e\.g|i\.e|etc|vs)\.$", buf, re.I):
+                          out.append(buf.strip())
+                          buf = ""
+              if buf.strip():
+                  out.append(buf.strip())
+              return out
+
+
+          def gist(text, limit=200):
+              """One short plain sentence: asides in (brackets) dropped, a too-short opener joined to the next sentence."""
+              if not text:
+                  return ""
+              if re.match(r"^\s*[-*] ", text):  # a bullet list: use its first item
+                  text = re.sub(r"^\s*[-*] ", "", text.splitlines()[0])
+              prev = None
+              while prev != text:
+                  prev, text = text, re.sub(r"\s*\([^()]*\)", "", text)
+              text = re.sub(r"\s+([,.;:!?])", r"\1", plain(text))
+              ss = sentences(text)
+              g = ss[0] if ss else ""
+              for s in ss[1:]:
+                  if len(g) >= 60 or len(g) + 1 + len(s) > limit:
+                      break
+                  g += " " + s
+              if len(g) > limit:
+                  g = g[:limit].rsplit(" ", 1)[0].rstrip(",;:—-") + "…"
+              return g[:1].upper() + g[1:]
+
+
+          TRAILER = re.compile(r"^\s*(co-authored-by|claude-session|signed-off-by)\s*:", re.I)
+
+
+          def paragraphs(text):
+              text = re.sub(r"<!--.*?-->", "", text or "", flags=re.S)
+              lines = [l for l in text.splitlines() if not TRAILER.match(l) and not re.match(r"^\s*-{3,}\s*$", l)]
+              lines = [l for l in lines if not re.match(r"^\s*(_Requested by|🤖 Generated with)", l)]
+              return [p.strip() for p in re.split(r"\n\s*\n", "\n".join(lines)) if p.strip()]
+
+
+          def whats_new(body):
+              """PRs here are written 'Before: … / After: …' in plain English; the After is what's new."""
+              paras = paragraphs(body)
+              after = next((re.sub(r"^\W*(after|now)\W*:\W*", "", p, flags=re.I) for p in paras
+                            if re.match(r"^\W*(after|now)\W*:", p, flags=re.I)), None)
+              if after:
+                  return after
+              prose = [p for p in paras if not p.startswith(("#", "|", "<", ">")) and not re.match(r"^\W*before\W*:", p, re.I)]
+              return prose[0] if prose else None
+
+
+          # ---- what went out in this push ----
+          UPKEEP = re.compile(r"^(notify-slack|slack publish alert)", re.I)  # edits to this alert itself
+          event = json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"))
+          commits = event.get("commits") or []
+          pusher = (event.get("sender") or {}).get("login")
+          if not commits:  # manual "Run workflow": re-announce the latest real publish on the branch
+              recent = gh(f"commits?sha={SHA}&per_page=20") or []
+              c = next((c for c in recent if not UPKEEP.match(c["commit"]["message"])), None)
+              if c:
+                  SHA = c["sha"]
+                  pusher = (c.get("author") or {}).get("login") or pusher
+              commits = [{"id": SHA, "message": c["commit"]["message"] if c else "(latest commit)"}]
+          compare = event.get("compare") or f"{GH}/commit/{SHA}"
+
+          pr_nums = []
+          for c in commits:
+              subj = c["message"].split("\n", 1)[0]
+              m = re.match(r"Merge pull request #(\d+)", subj) or re.search(r"\(#(\d+)\)\s*$", subj)
+              if m and int(m.group(1)) not in pr_nums:
+                  pr_nums.append(int(m.group(1)))
+          if not pr_nums:  # PR title edited after merge, etc.
+              pr_nums = [p["number"] for p in (gh(f"commits/{SHA}/pulls") or []) if p.get("merge_commit_sha") == SHA]
+          prs = [p for p in (gh(f"pulls/{n}") for n in pr_nums[:8]) if p]
+
+          # GitHub login -> the name the channel knows; anyone not listed shows as their GitHub login.
+          PEOPLE = {"babigly": "BA", "scrubbernorubber": "Scrub"}
+
+
+          def by(logins):
+              names = list(dict.fromkeys(PEOPLE.get(l, l) for l in logins if l))
+              return "by " + (" & ".join(names) or "unknown")
+
+
+          # Three lines a phone notification can show whole: site + what it is, one sentence on what's new, a link.
+          site = f"{EMOJI} *<{SITE}|{LABEL}>*"
+          out = []
+          if len(prs) == 1:
+              p = prs[0]
+              out.append(f"{site} · *{title(p['title'])}*")
+              line = gist(whats_new(p.get("body")))
+              if line:
+                  out.append(line)
+              out.append(f"<{p['html_url']}|PR #{p['number']}> · {by([p['user']['login']])}")
+          elif prs:
+              out.append(f"{site} · *{len(prs)} updates*")
+              out += [f"• {title(p['title'])} <{p['html_url']}|#{p['number']}>" for p in prs]
+              out.append(f"<{compare}|See all changes> · {by(p['user']['login'] for p in prs)}")
+          else:
+              NOISE = re.compile(r"^(merge |wip\b|fixup!|squash!|trim comments|typo|lint|format)", re.I)
+              real = [c for c in commits if not NOISE.match(c["message"]) and not UPKEEP.match(c["message"])] or commits
+              if len(real) == 1:
+                  c = real[0]
+                  subj, _, rest = c["message"].partition("\n")
+                  out.append(f"{site} · *{title(subj)}*")
+                  paras = paragraphs(rest)
+                  line = gist(paras[0]) if paras else ""
+                  if line:
+                      out.append(line)
+                  out.append(f"<{GH}/commit/{c['id']}|Details> · {by([pusher])}")
+              else:
+                  out.append(f"{site} · *{len(real)} updates*")
+                  out += [f"• {title(c['message'].split(chr(10), 1)[0])}" for c in real[:5]]
+                  if len(real) > 5:
+                      out.append(f"…and {len(real) - 5} more")
+                  out.append(f"<{compare}|See all changes> · {by([pusher])}")
+
+          text = "\n".join(out)
+          print(text)
+          if DRY_RUN:
+              sys.exit(0)
+
+          req = urllib.request.Request(WEBHOOK, data=json.dumps({"text": text}).encode(), headers={"Content-Type": "application/json"})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  code, body = r.status, r.read().decode(errors="replace")
+          except urllib.error.HTTPError as e:
+              code, body = e.code, e.read().decode(errors="replace")
+          print(f"Slack responded HTTP {code}: {body}")
+          # Delivered = HTTP 200 with "ok" (classic webhook) or {"ok":true}. Anything else = wrong, expired or revoked URL.
+          if code != 200 or not (body.strip() == "ok" or '"ok":true' in body.replace(" ", "")):
+              print(f"::error::Slack rejected the message (HTTP {code}, body '{body}') — the webhook URL is likely wrong, expired, or revoked.")
+              sys.exit(1)
+          print("✅ Slack alert sent.")
