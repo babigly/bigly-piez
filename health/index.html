@@ -204,6 +204,11 @@ header{display:block}
 .facts .warn{color:var(--warn)} .facts .bad{color:var(--bad)}
 .care .right{gap:18px}
 .svc{width:100%;border-collapse:collapse}
+.specs{margin:16px 0 0}
+.specs dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0;font-size:.92rem}
+.specs dt{color:var(--muted)}
+.specs dd{margin:0;overflow-wrap:anywhere}
+.specs .unsure{color:var(--muted);font-style:italic}
 .svc td{padding:5px 0;border-bottom:1px solid var(--line)}
 .svc td.st{text-align:right;font:700 .62rem var(--pixel);text-transform:uppercase;white-space:nowrap;padding-left:12px}
 .clean{font-size:.66rem;padding:4px 12px}
@@ -270,27 +275,35 @@ header{display:block}
 
 <script>
 // Pet data. src says which numbers are real. todo = [who, text]; these are real open items from PIS.md.
+// spec = [label, value, sure]: hardware notes from PIS.md; sure=0 means not checked on the Pi.
 // svc = [name, check, note]: check is {ports:[..]} or {unit:"x"} or {prefix:"x"} (null = not checked); note = expected off.
 const PETS=[
  {id:"anchor",name:"AnchorPi",tag:"Jukebox house Pi",shell:"--shell-a",hat:"crown",src:"Sample numbers",online:true,temp:54,disk:41,seen:"just now",born:"before 09-27",
+  spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Raspbian bookworm (32-bit)",1],["Storage","Not in the notes yet",0],["Cooling","Not in the notes yet",0],["Network","Cable and Wi-Fi at the same time",1]],
   svc:[["Jukebox :8080",{ports:[8080]}],["MPD x4 rooms",{ports:[6600,6601,6602,6603]}],["Room streams",{ports:[18001,18002,18003]}],["Caddy :80",{ports:[80]}],["AnchorForge",null]],
   says:"I'm the boss of the house music. No new roommates, please!",
   todo:[["BA","Decide if wlan0 gets turned off (it's on Wi-Fi and cable at once)"],["Claude","Confirm the old Biglypedia copy here is stopped"]]},
  {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real check 10-15",online:true,temp:56,disk:10,seen:"10-15",born:"10-02",awake:"10-15",
+  spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 110 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Network","Cable",1],["Extras","Docker 29.9 + Compose 5.6",1]],
   svc:[["Biglypedia 8470/8471",{ports:[8470,8471]}],["BiglyBank 8790",{ports:[8790]}],["Bigly Games 4173",{ports:[4173]}],["Biglympics watch page",{unit:"bigly-games-watch.service"}],["BNN signage 8095",{ports:[8095]}],["BiglyCraft 8800",{ports:[8800]}],["Postgres 17",{ports:[5432]}],["Docker",{unit:"docker.service"}],["Portal 8090/8091",{ports:[8090,8091]},"on purpose"]],
   says:"My new fan keeps me cool. All my chores are done!",
   todo:[["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
  {id:"bigpi2",name:"BigPi-002",tag:"DevHub",shell:"--shell-d",hat:"hardhat",src:"Sample numbers",online:true,temp:49,disk:22,seen:"just now",born:"unknown",
+  spec:[["Model","Raspberry Pi 5 (guess: it wears a Pi 5 fan)",0],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 28 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Extras","Docker 29.9 + Compose 5.6",1]],
   svc:[["DevHub",{ports:[8640]}],["Restart helper",{ports:[8452]}],["Docker",{unit:"docker.service"}]],says:"I'm the workshop. New apps can move in here!",todo:[]},
  {id:"room2",name:"Marketing",tag:"room2 speaker",shell:"--shell-c",hat:"phones",src:"Sample numbers",online:true,temp:47,disk:30,seen:"just now",born:"unknown",wifiFlaky:true,
+  spec:[["Model","Not checked (old notes said Pi Zero 2 W, but it has 2 GB)",0],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Network","Wi-Fi (\"Bigly IOT\")",1]],
   svc:[["Room player",{prefix:"bigly-room"}]],says:"The Wi-Fi keeps making my music skip!",
   todo:[["BA","Plug in the USB Ethernet adapter when it arrives"]]},
  {id:"room3",name:"Fulfillment",tag:"room3 speaker",shell:"--shell-e",hat:"phones",src:"Sample numbers",online:true,temp:45,disk:28,seen:"just now",born:"unknown",
+  spec:[["Model","Raspberry Pi Zero 2 W",1],["Memory","512 MB (about 0.4 GB free to use)",1],["System","Debian trixie",1],["Network","Wi-Fi, two radios (uses \"GO BIGLY\")",1]],
   svc:[["Room player",{prefix:"bigly-room"}]],says:"La la la. My Wi-Fi now uses the fast radio!",
   todo:[]},
  {id:"room4",name:"Cust. Service",tag:"room4 speaker",shell:"--shell-f",hat:"phones",src:"Never checked",unknown:true,svc:[],
+  spec:[["Model","Pi Zero 2 W (from the plan, not checked)",0],["Speaker","Bluetooth speaker",0],["Network","Hasn't joined Wi-Fi yet",0]],
   says:"Who am I? Nobody has checked on me yet.",todo:[["BA","Tell Claude room4's details"]]},
  {id:"signage",name:"Signage Pi",tag:"TV Pi (planned)",shell:"--shell-h",src:"Planned",egg:true,svc:[],
+  spec:[["Model","Raspberry Pi 5 (planned)",0],["Memory","4 GB (planned)",0]],
   says:"I'll hatch into the BNN TV pet. Did anyone buy me yet?",todo:[["BA","Confirm the signage Pi was bought"]]}
 ];
 const BAD={anchor:{online:false,seen:"12 min ago"},bigpi2:{disk:96},room3:{svc:[["Room player",false]]}};
@@ -450,7 +463,8 @@ function renderCare(p){
     <div class="hero"><div class="bigscreen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="0"></canvas></div><div class="bubble">${said}</div></div>
     <p class="mood" style="color:var(${M.tone})">${M.label}: ${M.why}</p>
     ${isEgg?"":`<ul class="facts"><li class="${p.online?"":"bad"}"><b>${p.online?"Online":"Offline"}</b></li><li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>${p.real?`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`:""}${p.online&&need?`<li class="${up+unk<need?"bad":""}">${unk===need?"Services <b>not checked</b>":`Services <b>${up}/${need}</b> up${unk?`, ${unk} not checked`:""}`}</li>`:""}</ul>`}
-    ${canRestart(p.id)?powerRow(p):""}</div>
+    ${canRestart(p.id)?powerRow(p):""}
+    ${p.spec&&p.spec.length?`<div class="specs"><span class="label">Specs</span><dl>${p.spec.map(x=>`<dt>${x[0]}</dt><dd class="${x[2]?"":"unsure"}">${x[1]}</dd>`).join("")}</dl>${p.spec.some(x=>!x[2])?`<p class="meta">Grey slanted ones aren't checked on the Pi yet.</p>`:""}</div>`:""}</div>
     <div class="right">
       <div><span class="label">To-dos</span>${p.todo.length?`<ul class="todos">${p.todo.map((t,i)=>`<li class="${cleaned[p.id+i]?"done":""}"><span class="who">${t[0]}</span><span class="txt">${t[1]}</span><button class="clean" data-k="${p.id+i}" aria-pressed="${!!cleaned[p.id+i]}" aria-label="${cleaned[p.id+i]?"Undo":"Mark done"}: ${t[1].replace(/"/g,"&quot;")}">${cleaned[p.id+i]?"Undo":"Done"}</button></li>`).join("")}</ul>`:`<p class="meta">Nothing to do.</p>`}</div>
       ${p.svc.length?`<div><span class="label">Services</span><table class="svc"><tbody>${p.svc.map(s=>`<tr><td>${s[0]}</td>${!p.online?`<td class="st" style="color:var(--idle)">Can't tell</td>`:`<td class="st" style="color:var(${s[1]===true?"--good":s[1]==null||s[2]?"--idle":"--bad"})">${s[1]===true?"Up":s[1]==null?"Not checked":s[2]?"Off ("+s[2]+")":"Down"}</td>`}</tr>`).join("")}</tbody></table></div>`:""}
