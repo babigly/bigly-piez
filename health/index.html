@@ -259,7 +259,7 @@ header{display:block}
   </details>
 
   <footer class="foot">
-    <p id="footnote">Only BigPi-001's numbers and the to-dos are real. Other numbers are samples, and nothing here talks to a Pi yet.</p>
+    <p id="footnote">The to-dos are real. Numbers are samples and services aren't checked until the live check answers.</p>
     <div class="toolbar">
       <button class="btn" id="restartall" hidden>Restart all</button>
       <button class="btn" id="sound" aria-pressed="true">Sound on</button>
@@ -270,31 +270,33 @@ header{display:block}
 
 <script>
 // Pet data. src says which numbers are real. todo = [who, text]; these are real open items from PIS.md.
+// svc = [name, check, note]: check is {ports:[..]} or {unit:"x"} or {prefix:"x"} (null = not checked); note = expected off.
 const PETS=[
  {id:"anchor",name:"AnchorPi",tag:"Jukebox house Pi",shell:"--shell-a",hat:"crown",src:"Sample numbers",online:true,temp:54,disk:41,seen:"just now",born:"before 09-27",
-  svc:[["Jukebox :8080",1],["MPD x4 rooms",1],["Room streams",1],["Caddy :80",1],["AnchorForge",1]],
+  svc:[["Jukebox :8080",{ports:[8080]}],["MPD x4 rooms",{ports:[6600,6601,6602,6603]}],["Room streams",{ports:[18001,18002,18003]}],["Caddy :80",{ports:[80]}],["AnchorForge",null]],
   says:"I'm the boss of the house music. No new roommates, please!",
   todo:[["BA","Decide if wlan0 gets turned off (it's on Wi-Fi and cable at once)"],["Claude","Confirm the old Biglypedia copy here is stopped"]]},
- {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real checkup 10-09",online:true,temp:68,disk:9,seen:"10-09",born:"10-02",awake:"10-07",
-  svc:[["Biglypedia 8470/8471",1],["BiglyBank 8790",1],["Bigly Games 4173",1],["BNN signage 8095",1],["Postgres 17",1],["Portal 8090/8091",0,"off on purpose"]],
-  says:"All my chores are done, but it's toasty in here. Fan, please!",
-  todo:[["BA","Install the Pi 5 Active Cooler, then re-check temp"],["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
+ {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real check 10-15",online:true,temp:56,disk:10,seen:"10-15",born:"10-02",awake:"10-15",
+  svc:[["Biglypedia 8470/8471",{ports:[8470,8471]}],["BiglyBank 8790",{ports:[8790]}],["Bigly Games 4173",{ports:[4173]}],["Biglympics watch page",{unit:"bigly-games-watch.service"}],["BNN signage 8095",{ports:[8095]}],["BiglyCraft 8800",{ports:[8800]}],["Postgres 17",{ports:[5432]}],["Docker",{unit:"docker.service"}],["Portal 8090/8091",{ports:[8090,8091]},"on purpose"]],
+  says:"My new fan keeps me cool. All my chores are done!",
+  todo:[["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
  {id:"bigpi2",name:"BigPi-002",tag:"DevHub",shell:"--shell-d",hat:"hardhat",src:"Sample numbers",online:true,temp:49,disk:22,seen:"just now",born:"unknown",
-  svc:[["DevHub",1]],says:"I'm the workshop. New apps can move in here!",todo:[]},
+  svc:[["DevHub",{ports:[8640]}],["Restart helper",{ports:[8452]}],["Docker",{unit:"docker.service"}]],says:"I'm the workshop. New apps can move in here!",todo:[]},
  {id:"room2",name:"Marketing",tag:"room2 speaker",shell:"--shell-c",hat:"phones",src:"Sample numbers",online:true,temp:47,disk:30,seen:"just now",born:"unknown",wifiFlaky:true,
-  svc:[["Room player",1]],says:"The Wi-Fi keeps making my music skip!",
+  svc:[["Room player",{prefix:"bigly-room"}]],says:"The Wi-Fi keeps making my music skip!",
   todo:[["BA","Plug in the USB Ethernet adapter when it arrives"]]},
  {id:"room3",name:"Fulfillment",tag:"room3 speaker",shell:"--shell-e",hat:"phones",src:"Sample numbers",online:true,temp:45,disk:28,seen:"just now",born:"unknown",
-  svc:[["Room player",1]],says:"La la la. Healthy since 09-30!",
-  todo:[["BA","OK the Wi-Fi route fix (route-metric 100 on wlan1)"]]},
+  svc:[["Room player",{prefix:"bigly-room"}]],says:"La la la. My Wi-Fi now uses the fast radio!",
+  todo:[]},
  {id:"room4",name:"Cust. Service",tag:"room4 speaker",shell:"--shell-f",hat:"phones",src:"Never checked",unknown:true,svc:[],
   says:"Who am I? Nobody has checked on me yet.",todo:[["BA","Tell Claude room4's details"]]},
  {id:"signage",name:"Signage Pi",tag:"TV Pi (planned)",shell:"--shell-h",src:"Planned",egg:true,svc:[],
-  says:"I'll hatch into the BNN TV pet. Did anyone buy me yet?",todo:[["BA","Confirm the signage Pi was bought"],["Claude","Move BNN here from BigPi-001"]]}
+  says:"I'll hatch into the BNN TV pet. Did anyone buy me yet?",todo:[["BA","Confirm the signage Pi was bought"]]}
 ];
-const BAD={anchor:{online:false,seen:"12 min ago"},bigpi2:{disk:96},room3:{svc:[["Room player",0]]}};
+const BAD={anchor:{online:false,seen:"12 min ago"},bigpi2:{disk:96},room3:{svc:[["Room player",false]]}};
 // Real events from PIS.md and the 10-09 checkup.
 const DIARY=[
+ ["10-15","BigPi-001 + BigPi-002","Got Active Cooler fans (BigPi-001 went from 68°C to 56°C) and now swap backup copies every night."],
  ["10-09","BigPi-001","Checkup: every chore done, 68°C with no fan, disk 9% full."],
  ["10-07","BigPi-001","Was shut down and power-cycled. Nobody knows why yet."],
  ["10-05","AnchorPi","Got its own reserved address, .243."],
@@ -305,7 +307,7 @@ const DIARY=[
 
 function moodOf(p){
   if(p.egg)return"egg"; if(p.unknown)return"mystery"; if(!p.online)return"asleep";
-  if(p.svc.some(s=>!s[1]&&!s[2])||p.temp>=80||p.disk>=95)return"sick";
+  if(p.svc.some(s=>s[1]===false&&!s[2])||p.temp>=80||p.disk>=95)return"sick";
   if(p.wifiFlaky)return"dizzy";
   if(p.temp>=65||p.disk>=85)return"sweaty";
   if(p.temp>=58||p.disk>=70)return"ok";
@@ -387,7 +389,10 @@ let LIVE=null, pending={}, confirming=null;
 let HEALTH=null;
 const liveOf=id=>LIVE&&LIVE.pis[id]&&typeof LIVE.pis[id].online==="boolean"?LIVE.pis[id]:null;
 const healthOf=id=>HEALTH&&HEALTH.pis[id]&&HEALTH.pis[id].ok?HEALTH.pis[id]:null;
-const live=()=>PETS.map(p=>{let q=bad&&BAD[p.id]?{...p,...BAD[p.id]}:p;const L=liveOf(p.id),N=healthOf(p.id);
+// A service is true (up), false (not running) or null (not checked: no live data, or no check for it).
+const svcUp=(c,N)=>!c||!N||!N.ports||!N.running?null:c.ports?c.ports.every(x=>N.ports.includes(x)):c.unit?N.running.includes(c.unit):N.running.some(u=>u.startsWith(c.prefix));
+const svcOf=(p,N)=>p.svc.map(s=>[s[0],svcUp(s[1],N),s[2]]).concat(N&&N.failed&&N.failed.length?[["Failed: "+N.failed.join(", "),false]]:[]);
+const live=()=>PETS.map(p=>{const L=liveOf(p.id),N=healthOf(p.id);let q={...p,svc:svcOf(p,N)};if(bad&&BAD[p.id])q={...q,...BAD[p.id]};
   if(L&&!bad&&!q.egg&&!q.unknown)q={...q,online:L.online,live:(L.online?"answering":"not answering")+" at "+LIVE.checked};
   if(N&&!bad&&!q.egg&&!q.unknown&&q.online!==false)q={...q,src:"Live numbers at "+HEALTH.checked,temp:N.temp_c,disk:N.disk_pct,cpu:N.cpu_pct,mem:N.mem_pct,up:N.up_s,real:true};
   else if(HEALTH&&HEALTH.pis[p.id]&&HEALTH.pis[p.id].why==="setup"&&!bad)q={...q,src:q.src+" (needs the health update)"};
@@ -439,16 +444,16 @@ function wobble(id){const d=document.getElementById("dev-"+id);d.classList.remov
 
 function renderCare(p){
   const m=moodOf(p), M=MOODS[m], c=document.getElementById("care"), isEgg=p.egg||p.unknown;
-  const said=(bad&&BADSAYS[m])||p.says, up=p.svc.filter(x=>x[1]).length, need=p.svc.filter(x=>!x[2]).length;
+  const said=(bad&&BADSAYS[m])||p.says, up=p.svc.filter(x=>x[1]===true&&!x[2]).length, need=p.svc.filter(x=>!x[2]).length, unk=p.svc.filter(x=>x[1]==null&&!x[2]).length;
   const cls=(v,w,b)=>v>=b?"bad":v>=w?"warn":"";
   c.innerHTML=`<div><h2>${p.name}</h2><p class="meta">${p.tag} · ${p.src}${p.live?` · ${p.live}`:p.seen?` · last heard ${p.seen}`:""}</p>
     <div class="hero"><div class="bigscreen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="0"></canvas></div><div class="bubble">${said}</div></div>
     <p class="mood" style="color:var(${M.tone})">${M.label}: ${M.why}</p>
-    ${isEgg?"":`<ul class="facts"><li class="${p.online?"":"bad"}"><b>${p.online?"Online":"Offline"}</b></li><li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>${p.real?`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`:""}${p.online?`<li class="${up<need?"bad":""}">Services <b>${up}/${need}</b> up</li>`:""}</ul>`}
+    ${isEgg?"":`<ul class="facts"><li class="${p.online?"":"bad"}"><b>${p.online?"Online":"Offline"}</b></li><li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>${p.real?`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`:""}${p.online&&need?`<li class="${up+unk<need?"bad":""}">${unk===need?"Services <b>not checked</b>":`Services <b>${up}/${need}</b> up${unk?`, ${unk} not checked`:""}`}</li>`:""}</ul>`}
     ${canRestart(p.id)?powerRow(p):""}</div>
     <div class="right">
       <div><span class="label">To-dos</span>${p.todo.length?`<ul class="todos">${p.todo.map((t,i)=>`<li class="${cleaned[p.id+i]?"done":""}"><span class="who">${t[0]}</span><span class="txt">${t[1]}</span><button class="clean" data-k="${p.id+i}" aria-pressed="${!!cleaned[p.id+i]}" aria-label="${cleaned[p.id+i]?"Undo":"Mark done"}: ${t[1].replace(/"/g,"&quot;")}">${cleaned[p.id+i]?"Undo":"Done"}</button></li>`).join("")}</ul>`:`<p class="meta">Nothing to do.</p>`}</div>
-      ${p.svc.length?`<div><span class="label">Services</span><table class="svc"><tbody>${p.svc.map(s=>`<tr><td>${s[0]}</td>${!p.online?`<td class="st" style="color:var(--idle)">Can't tell</td>`:`<td class="st" style="color:var(${s[1]?"--good":s[2]?"--idle":"--bad"})">${s[1]?"Up":s[2]?"Off ("+s[2]+")":"Down"}</td>`}</tr>`).join("")}</tbody></table></div>`:""}
+      ${p.svc.length?`<div><span class="label">Services</span><table class="svc"><tbody>${p.svc.map(s=>`<tr><td>${s[0]}</td>${!p.online?`<td class="st" style="color:var(--idle)">Can't tell</td>`:`<td class="st" style="color:var(${s[1]===true?"--good":s[1]==null||s[2]?"--idle":"--bad"})">${s[1]===true?"Up":s[1]==null?"Not checked":s[2]?"Off ("+s[2]+")":"Down"}</td>`}</tr>`).join("")}</tbody></table></div>`:""}
     </div>`;
   c.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>onRestart(b.dataset.r,b.dataset.id));
   c.querySelectorAll(".clean").forEach(b=>b.onclick=e=>{const k=b.dataset.k;cleaned[k]=!cleaned[k];if(cleaned[k]){beep(SFX.clean);floatAt(e,"✨")}render();const n=c.querySelector(`.clean[data-k="${k}"]`);if(n)n.focus()});
@@ -508,8 +513,8 @@ function footnote(){
   if(!LIVE)return;
   const n=PETS.filter(p=>healthOf(p.id)).length;
   document.getElementById("footnote").textContent=`"Online" comes from a live check at ${LIVE.checked}${LIVE.dry?" (test mode: restarts are pretend)":""}. `
-    +(n?`Temperature, disk, CPU, memory and time on are live for ${n} Pi${n>1?"s":""} (checked ${HEALTH.checked}, every 2 minutes); a Pi that says "Sample numbers" isn't sending them yet. Services are still samples.`
-      :`Temperatures, disks and services are still samples, except BigPi-001's.`);
+    +(n?`Temperature, disk, CPU, memory and time on are live for ${n} Pi${n>1?"s":""} (checked ${HEALTH.checked}, every 2 minutes); a Pi that says "Sample numbers" isn't sending them yet. Services come from the same check; "Not checked" means that Pi hasn't sent them yet.`
+      :`Temperatures and disks are samples, and services aren't checked yet.`);
 }
 async function refreshHealth(){
   if(location.protocol==="file:")return;

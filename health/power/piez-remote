@@ -4,13 +4,18 @@
 case "$SSH_ORIGINAL_COMMAND" in
   true) exit 0 ;;
   health)
-    # Read-only: prints raw numbers (temp in millidegrees, two CPU samples 1s apart, memory kB, disk kB, uptime s).
+    # Read-only: prints raw numbers (temp in millidegrees, two CPU samples 1s apart, memory kB, disk kB, uptime s)
+    # plus what is running.
     echo "temp=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"
     echo "cpu1=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat)"; sleep 1
     echo "cpu2=$(awk '/^cpu /{print $2,$3,$4,$5,$6,$7,$8,$9}' /proc/stat)"
     echo "mem=$(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{print t,a}' /proc/meminfo)"
     echo "disk=$(df -Pk / | awk 'NR==2{print $2,$3,$4}')"
     echo "up=$(cut -d' ' -f1 /proc/uptime)"
+    # Which apps are running: listening TCP ports, running services, failed units (names only).
+    echo "ports=$(ss -Htln 2>/dev/null | awk '{n=split($4,a,":"); print a[n]}' | sort -nu | tr '\n' ' ')"
+    echo "running=$(systemctl list-units --type=service --state=running --no-legend --plain 2>/dev/null | awk '{print $1}' | tr '\n' ' ')"
+    echo "failed=$(systemctl list-units --state=failed --no-legend --plain 2>/dev/null | awk '{print $1}' | tr '\n' ' ')"
     exit 0 ;;
   "sudo -n /usr/bin/systemctl reboot") exec sudo -n /usr/bin/systemctl reboot ;;
   *) echo "Bigly Piez key: not allowed" >&2; exit 1 ;;

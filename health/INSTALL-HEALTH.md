@@ -68,3 +68,29 @@ It should print the live numbers and `ok: helper and page updated`.
 - Ran both install scripts against a pretend `/home/bigly`: install, undo, and the "wrong version, stop" check all work.
 - **Not tested on a real Pi yet.** The temperature file (`/sys/class/thermal/thermal_zone0/temp`) is standard on Raspberry Pi OS but wasn't checked on each Pi; if one lacks it, that pet just shows "Temp ?".
 - The live copies on BigPi-002 and the Pis weren't read; the install scripts' version check covers that.
+
+---
+
+# Update 2026-10-15: real app lights
+
+_Nothing here is installed until BA types the go-ahead. Same pattern as above: version check, backup, undo._
+
+**What changes:** the `health` word also lists which TCP ports are listening and which services are running or failed (names only, read-only). Each app on a pet's card turns **Up** or **Down** from that, instead of always showing "Up". If a Pi hasn't sent the list yet, or an app has no check (AnchorForge), it says **Not checked** in grey. A failed service shows as its own red line and makes the pet look sick. The 3 stale to-dos (Active Cooler, Fulfillment route fix, Move BNN) are gone, and BigPi-001's card now also lists BiglyCraft, the Biglympics watch page and Docker.
+
+| App | Counts as up when |
+|---|---|
+| AnchorPi | Jukebox port 8080, MPD 6600–6603, room streams 18001–18003, Caddy 80 |
+| BigPi-001 | Biglypedia 8470+8471, bank 8790, games 4173, signage 8095, BiglyCraft 8800, Postgres 5432, `bigly-games-watch` and `docker` running; Portal 8090/8091 is expected off |
+| BigPi-002 | DevHub 8640, restart helper 8452, `docker` running |
+| Marketing, Fulfillment | a running service whose name starts with `bigly-room` |
+
+**Steps** (from `C:\CLAUDE\pi-pets\health`, a copy of this folder):
+
+1. The four Pis, one at a time (same hosts as above):
+   `scp power/piez-remote power/services-install-pi.sh HOST:/tmp/` then `ssh HOST "sh /tmp/services-install-pi.sh"`. Each should end with `ok: NAME reports its apps`.
+2. BigPi-002: copy `power/restart.py power/piez-remote index.html power/services-install-hub.sh power/services-undo-hub.sh` into `~/piez-services/` and run `sh ~/piez-services/services-install-hub.sh`.
+3. Check: `curl -s http://127.0.0.1:8452/health` on BigPi-002 shows `ports` and `running` for every Pi. Open the dashboard and make sure every app that's really running says **Up**. If the room players say Down, their service has a different name; undo or adjust before calling it done.
+
+**Undo:** BigPi-002 `sh ~/piez-services/services-undo-hub.sh`; each Pi `sh /tmp/services-install-pi.sh undo`.
+
+**Tested in the cloud:** 11 unit tests (new: ports/services parse, odd names give blanks, the key still refuses everything else); the page with pretend live data in a headless browser (Up, Down, Not checked, Off on purpose, a failed service, a Pi on the old script, "Preview a bad day"), no page errors; the hub install script against a pretend home (install, refuses to run twice, undo restores the exact old files). **Not tested on the real Pis yet.**
