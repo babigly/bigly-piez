@@ -1,0 +1,7 @@
+[Unit]
+Description=Bigly off-Pi backup copy (tidy old copies)
+
+[Service]
+Type=oneshot
+User=bigly
+ExecStart=/usr/local/bin/offpi-prune.sh
