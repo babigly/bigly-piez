@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Bigly Piez restart helper: live "is it answering?" checks, read-only health numbers, and a Restart button.
 # Listens on 127.0.0.1 only; `tailscale serve` puts it at /api next to the page. Stdlib only.
-import json, os, subprocess, sys, threading, time
+import json, os, re, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -68,7 +68,7 @@ def parse_health(text):
     # Turns piez-remote's raw "health" lines into a few rounded numbers; anything odd becomes None, never a guess.
     raw = dict(l.split("=", 1) for l in text.splitlines() if "=" in l)
     nums = lambda k: [int(x) for x in raw.get(k, "").split()] if raw.get(k, "").replace(" ", "").isdigit() else []
-    out = {"temp_c": None, "cpu_pct": None, "mem_pct": None, "disk_pct": None, "up_s": None}
+    out = {"temp_c": None, "cpu_pct": None, "mem_pct": None, "disk_pct": None, "up_s": None}  # + ports, running, failed
     if raw.get("temp", "").lstrip("-").isdigit() and -40000 < int(raw["temp"]) < 150000:
         out["temp_c"] = round(int(raw["temp"]) / 1000)
     a, b = nums("cpu1"), nums("cpu2")
@@ -85,7 +85,29 @@ def parse_health(text):
         out["up_s"] = int(float(raw["up"])) if float(raw.get("up", "-1")) >= 0 else None
     except ValueError:
         pass
+    out.update(ports=parse_ports(raw.get("ports")), running=parse_units(raw.get("running")),
+               failed=parse_units(raw.get("failed")))
     return out
+
+
+UNIT = re.compile(r"[A-Za-z0-9@._:\\-]{1,128}")
+
+
+def parse_ports(v):
+    # None = this Pi didn't report ports (older piez-remote); [] = nothing listening.
+    if v is None:
+        return None
+    ps = v.split()
+    if len(ps) > 500 or not all(p.isdigit() and 0 < int(p) < 65536 for p in ps):
+        return None
+    return sorted({int(p) for p in ps})
+
+
+def parse_units(v):
+    if v is None:
+        return None
+    us = v.split()
+    return us if len(us) <= 500 and all(UNIT.fullmatch(u) for u in us) else None
 
 
 def read_health(pid):
@@ -104,7 +126,7 @@ def read_health(pid):
     if r.returncode != 0:
         # An old piez-remote says "not allowed": the Pi is fine, it just needs the health update.
         return {"ok": False, "why": "setup" if "not allowed" in r.stderr or "Permission denied" in r.stderr else "offline"}
-    return {"ok": True, **parse_health(r.stdout[:4000])}
+    return {"ok": True, **parse_health(r.stdout[:16000])}
 
 
 def health():

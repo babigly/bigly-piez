@@ -16,20 +16,33 @@ PI5 = "temp=61200\ncpu1=100 0 50 800 50 0 0 0\ncpu2=160 0 70 880 50 0 0 0\nmem=8
 class ParseHealth(unittest.TestCase):
     def test_pi5_sample(self):
         self.assertEqual(restart.parse_health(PI5),
-                         {"temp_c": 61, "cpu_pct": 50, "mem_pct": 25, "disk_pct": 10, "up_s": 93784})
+                         {"temp_c": 61, "cpu_pct": 50, "mem_pct": 25, "disk_pct": 10, "up_s": 93784,
+                          "ports": None, "running": None, "failed": None})
 
     def test_missing_temperature_is_none(self):
         self.assertIsNone(restart.parse_health(PI5.replace("temp=61200", "temp="))["temp_c"])
 
     def test_garbage_never_guesses(self):
         out = restart.parse_health("temp=hot\ncpu1=1 2\ncpu2=x\nmem=0 5\ndisk=1 2\nup=soon\nrm -rf /\n")
-        self.assertEqual(out, {"temp_c": None, "cpu_pct": None, "mem_pct": None, "disk_pct": None, "up_s": None})
+        self.assertEqual(out, {"temp_c": None, "cpu_pct": None, "mem_pct": None, "disk_pct": None, "up_s": None,
+                               "ports": None, "running": None, "failed": None})
 
     def test_impossible_temperature_is_none(self):
         self.assertIsNone(restart.parse_health(PI5.replace("61200", "999999"))["temp_c"])
 
     def test_disk_rounds_up_like_df(self):
         self.assertEqual(restart.parse_health("disk=1000 101 899")["disk_pct"], 11)
+
+
+    def test_services(self):
+        out = restart.parse_health(PI5 + "ports=22 5432 8470 8470 \nrunning=ssh.service bigly-room2.service getty@tty1.service \nfailed=\n")
+        self.assertEqual(out["ports"], [22, 5432, 8470])
+        self.assertEqual(out["running"], ["ssh.service", "bigly-room2.service", "getty@tty1.service"])
+        self.assertEqual(out["failed"], [])
+
+    def test_odd_services_never_guess(self):
+        out = restart.parse_health("ports=22 99999\nrunning=ok.service <script>\nfailed=a.service; rm\n")
+        self.assertEqual((out["ports"], out["running"], out["failed"]), (None, None, None))
 
 
 class RemoteScript(unittest.TestCase):
@@ -41,7 +54,7 @@ class RemoteScript(unittest.TestCase):
         r = self.run_remote("health")
         self.assertEqual(r.returncode, 0)
         out = restart.parse_health(r.stdout)
-        for k in ("cpu_pct", "mem_pct", "disk_pct", "up_s"):
+        for k in ("cpu_pct", "mem_pct", "disk_pct", "up_s", "ports", "running", "failed"):
             self.assertIsNotNone(out[k], k)
 
     def test_other_commands_still_refused(self):
