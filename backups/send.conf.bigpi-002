@@ -1,0 +1,5 @@
+# BigPi-002 sends to BigPi-001. No secrets in here; the key file stays on the Pi.
+TARGET=bigly@100.105.184.68
+KEY=/etc/bigly-offpi/id_ed25519
+FOLDERS="devhub=/var/lib/devhub/backups"
+EXCLUDE=""

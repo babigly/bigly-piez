@@ -1,0 +1,5 @@
+# BigPi-001 sends to BigPi-002. No secrets in here; the key file stays on the Pi.
+TARGET=bigly@bigpi-002.tail6c7763.ts.net
+KEY=/etc/bigly-offpi/id_ed25519
+FOLDERS="biglybank=/home/bigly/biglybank-backups biglydex-v2=/home/bigly/biglydex-v2/backups biglycraft=/home/bigly/biglycraft-data/backups bigly-games=/home/bigly/bigly-games/data/backups"
+EXCLUDE="*-hourly*"

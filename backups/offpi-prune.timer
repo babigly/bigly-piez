@@ -1,0 +1,9 @@
+[Unit]
+Description=Weekly tidy of off-Pi backup copies
+
+[Timer]
+OnCalendar=Sun 05:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Bigly off-Pi backup copy (send to the other BigPi)
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=bigly
+ExecStart=/usr/local/bin/offpi-send.sh
