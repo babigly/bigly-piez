@@ -198,7 +198,6 @@ header{display:block}
 .jlabel,.olabel{display:block;font:700 .7rem var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .olabel{grid-column:1/-1;margin:0 0 -26px 2px}
 .dev .lcdtext{font-size:.66rem}
-.dev .todo-n{font:700 .6rem var(--pixel);text-transform:uppercase;color:var(--lip-ink);min-height:1em}
 .facts{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0 0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
 .facts li b{font-weight:700}
 .facts .warn{color:var(--warn)} .facts .bad{color:var(--bad)}
@@ -241,6 +240,28 @@ header{display:block}
 #allbox{margin:0}
 .btn.primary{background:var(--fg);color:var(--bg)}
 .power-msg{margin:14px 0 0;font-weight:700;color:var(--good)} .power-msg.bad{color:var(--bad)}
+
+/* UX-01: a plain-word status pill on each pet; red moods glow. */
+.pill{display:inline-flex;align-items:center;gap:6px;font:800 .82rem/1 var(--body);color:#fff;border-radius:999px;padding:5px 10px 4px;background:rgb(20 8 12/.78);white-space:nowrap}
+.pill b{font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.pill .gdot{width:8px;height:8px;border-radius:50%;background:#7fe0a6}
+.pill.t-warn{background:#f0b04a;color:#23233a}
+.pill.t-bad{background:#c43c4c}
+.pill.t-idle{background:rgb(70 70 90/.9)}
+.dev.alert,.dev.alert[aria-current="true"]{box-shadow:inset 0 0 0 1px var(--lip-rim),inset 0 3px 0 var(--lip-lit-in),inset 0 -5px 0 var(--lip-under),inset 0 0 14px var(--lip-bloom),0 0 0 5px rgb(230 40 60/.55),0 0 30px 10px rgb(230 40 60/.5)}
+.jrow{padding:36px 24px 34px;margin:0 -18px -20px}
+@media (max-width:560px){.pill{font-size:.68rem;padding:4px 8px 3px;gap:4px}.jrow{margin-inline:-16px;padding:30px 22px 34px}}
+
+/* UX-02: way back up from the card. */
+.backrow{margin:0 0 -12px}
+.backrow .btn{font-size:.9rem;padding:4px 14px}
+
+/* UX-03: say when info is old instead of live. */
+.stale{margin:12px 0 0;padding:10px 14px;border:2px solid var(--warn);border-radius:14px;background:#fff4d6;color:#23233a}
+.stale b{display:block;font-size:1.05rem}
+.stale span{font-size:.92rem}
+.facts .unk{color:var(--muted)}
+.mood.unk{color:var(--muted)}
 </style>
 
 </head><body>
@@ -248,9 +269,11 @@ header{display:block}
   <header>
     <h1>Bigly Piez</h1>
     <p class="status" id="status" aria-live="polite"></p>
+    <div class="stale" id="stale" role="status" hidden></div>
   </header>
 
   <div class="shelf" id="shelf"></div>
+  <p class="backrow" id="backrow"><button class="btn" id="backtop">↑ Back to all Pis</button></p>
   <section class="care" id="care" aria-live="polite"></section>
   <div class="confirm" id="allbox" hidden></div>
 
@@ -283,10 +306,10 @@ const PETS=[
   svc:[["Jukebox :8080",{ports:[8080]}],["MPD x4 rooms",{ports:[6600,6601,6602,6603]}],["Room streams",{ports:[18001,18002,18003]}],["Caddy :80",{ports:[80]}],["AnchorForge",null]],
   says:"I'm the boss of the house music. No new roommates, please!",
   todo:[["BA","Decide if wlan0 gets turned off (it's on Wi-Fi and cable at once)"],["Claude","Confirm the old Biglypedia copy here is stopped"]]},
- {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real check 10-15",online:true,temp:56,disk:10,seen:"10-15",born:"10-02",awake:"10-15",
+ {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real check 10-15",asOf:"10-15",online:true,temp:56,disk:10,seen:"10-15",born:"10-02",awake:"10-15",
   spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 110 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Network","Cable",1],["Extras","Docker 29.9 + Compose 5.6",1]],
   svc:[["Biglypedia 8470/8471",{ports:[8470,8471]}],["BiglyBank 8790",{ports:[8790]}],["Bigly Games 4173",{ports:[4173]}],["Biglympics watch page",{unit:"bigly-games-watch.service"}],["BNN signage 8095",{ports:[8095]}],["BiglyCraft 8800",{ports:[8800]}],["Postgres 17",{ports:[5432]}],["Docker",{unit:"docker.service"}],["Portal 8090/8091",{ports:[8090,8091]},"on purpose"]],
-  says:"My new fan keeps me cool. All my chores are done!",
+  says:"My new fan keeps me cool!",
   todo:[["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
  {id:"bigpi2",name:"BigPi-002",tag:"DevHub",shell:"--shell-d",hat:"hardhat",src:"Sample numbers",online:true,temp:49,disk:22,seen:"just now",born:"unknown",
   spec:[["Model","Raspberry Pi 5 (guess: it wears a Pi 5 fan)",0],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 28 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Extras","Docker 29.9 + Compose 5.6",1]],
@@ -327,7 +350,7 @@ function moodOf(p){
   return"happy";
 }
 const MOODS={
- happy:{label:"Happy",tone:"--good",why:"Online, cool, roomy, all chores done."},
+ happy:{label:"Happy",tone:"--good",why:"Online, cool and roomy."},
  ok:{label:"Fine",tone:"--good",why:"A bit warm or a bit full. Nothing to do yet."},
  sweaty:{label:"Too warm",tone:"--warn",why:"65°C or hotter, or disk 85%+ full."},
  dizzy:{label:"Dizzy",tone:"--warn",why:"Network is flaky, like room2's Wi-Fi."},
@@ -400,15 +423,22 @@ let bad=false, sel="bigpi1", frame=0, cleaned={};
 let LIVE=null, pending={}, confirming=null;
 // HEALTH comes from the helper's /api/health (read-only numbers, refreshed every 2 minutes); null = samples only.
 let HEALTH=null;
+// Whether the last /api/status and /api/health calls failed; drives the "old info" banner (UX-03).
+let liveTried=false, liveFailed=false, healthFailed=false;
 const liveOf=id=>LIVE&&LIVE.pis[id]&&typeof LIVE.pis[id].online==="boolean"?LIVE.pis[id]:null;
 const healthOf=id=>HEALTH&&HEALTH.pis[id]&&HEALTH.pis[id].ok?HEALTH.pis[id]:null;
 // A service is true (up), false (not running) or null (not checked: no live data, or no check for it).
 const svcUp=(c,N)=>!c||!N||!N.ports||!N.running?null:c.ports?c.ports.every(x=>N.ports.includes(x)):c.unit?N.running.includes(c.unit):N.running.some(u=>u.startsWith(c.prefix));
 const svcOf=(p,N)=>p.svc.map(s=>[s[0],svcUp(s[1],N),s[2]]).concat(N&&N.failed&&N.failed.length?[["Failed: "+N.failed.join(", "),false]]:[]);
-const live=()=>PETS.map(p=>{const L=liveOf(p.id),N=healthOf(p.id);let q={...p,svc:svcOf(p,N)};if(bad&&BAD[p.id])q={...q,...BAD[p.id]};
-  if(L&&!bad&&!q.egg&&!q.unknown)q={...q,online:L.online,live:(L.online?"answering":"not answering")+" at "+LIVE.checked};
-  if(N&&!bad&&!q.egg&&!q.unknown&&q.online!==false)q={...q,src:"Live numbers at "+HEALTH.checked,temp:N.temp_c,disk:N.disk_pct,cpu:N.cpu_pct,mem:N.mem_pct,up:N.up_s,real:true};
-  else if(HEALTH&&HEALTH.pis[p.id]&&HEALTH.pis[p.id].why==="setup"&&!bad)q={...q,src:q.src+" (needs the health update)"};
+// known=false: no live Online answer for this Pi, so the page shows last known info in grey (UX-03).
+const live=()=>PETS.map(p=>{const L=liveOf(p.id),N=healthOf(p.id),fresh=N&&!HEALTH.stale;let q={...p,svc:svcOf(p,fresh?N:null)};
+  if(bad||q.egg||q.unknown)return bad&&BAD[p.id]?{...q,...BAD[p.id]}:q;
+  q=L?{...q,online:L.online,known:true,live:(L.online?"answering":"not answering")+" at "+LIVE.checked}:{...q,known:false};
+  if(q.online===false)q={...q,src:"",last:N?{temp:N.temp_c,disk:N.disk_pct,at:HEALTH.checked}:null};
+  else if(fresh)q={...q,src:"Live numbers at "+HEALTH.checked,temp:N.temp_c,disk:N.disk_pct,cpu:N.cpu_pct,mem:N.mem_pct,up:N.up_s,real:true};
+  else if(N)q={...q,src:"Last live numbers at "+HEALTH.checked,temp:N.temp_c,disk:N.disk_pct,dated:"at "+HEALTH.checked};
+  else if(q.asOf)q={...q,dated:"on "+q.asOf};
+  if(!N&&HEALTH&&HEALTH.pis[p.id]&&HEALTH.pis[p.id].why==="setup")q={...q,src:q.src+" (needs the health update)"};
   return q});
 const upText=s=>s>=172800?Math.floor(s/86400)+" days":s>=7200?Math.floor(s/3600)+" hours":Math.max(1,Math.floor(s/60))+" min";
 const num=(v,unit)=>v==null?"?":v+unit;
@@ -417,6 +447,9 @@ const reachable=id=>canRestart(id)&&LIVE.pis[id].online!==false;
 const WARN={anchor:"All room music stops until it's back.",bigpi2:"This page lives here, so it goes away for a few minutes too.",bigpi1:"Biglypedia, the bank and games pause until it's back."};
 const openTodos=p=>p.todo.filter((t,i)=>!cleaned[p.id+i]);
 
+// UX-01: the egg's status pill: [plain word, tone].
+const PILL={happy:["OK","calm"],ok:["OK","calm"],sweaty:["Too warm","warn"],dizzy:["Dizzy","warn"],sick:["Sick","bad"],asleep:["Offline","bad"],mystery:["Never checked","idle"],egg:["Not hatched","idle"]};
+const pillOf=(m,n)=>`<span class="pill t-${PILL[m][1]}">${PILL[m][1]==="calm"?'<i class="gdot"></i>':""}<b>${PILL[m][0]}</b>${n?` · ${n} to-do${n>1?"s":""}`:""}</span>`;
 const PL={"--shell-a":["red","Cherry Red"],"--shell-b":["amber","Amber Orange"],"--shell-d":["purple","Atomic Purple"],"--shell-c":["cyan","Ice Cyan"],"--shell-e":["green","Lime Green"],"--shell-f":["smoke","Graphite Smoke"],"--shell-h":["blue","Cobalt Blue"],"--shell-g":["clear","Natural Clear"]};
 const JUKE=new Set(["anchor","room2","room3","room4"]);
 const plOf=p=>JUKE.has(p&&p.id)?PL["--shell-a"]:(PL[p&&p.shell]||PL["--shell-a"]);
@@ -428,10 +461,10 @@ function render(){
   jbox.innerHTML='<span class="jlabel">Jukebox Pis</span>';jrow.setAttribute("aria-label","Jukebox Pis");jbox.appendChild(jrow);shelf.appendChild(jbox);
   pets.forEach(p=>{
     const m=moodOf(p), poops=openTodos(p).length; counts[m]=(counts[m]||0)+1;
-    const b=document.createElement("button"); b.className="dev pl-"+plOf(p)[0]; b.id="dev-"+p.id; 
+    const b=document.createElement("button"); b.className="dev pl-"+plOf(p)[0]+(PILL[m][1]==="bad"?" alert":""); b.id="dev-"+p.id; 
     b.setAttribute("aria-current",p.id===sel);b.setAttribute("aria-label",`${p.name}: ${MOODS[m].label}, ${poops} to-do${poops===1?"":"s"}. Show details`);
     b.innerHTML=`<span class="screen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="${poops}"></canvas><span class="lcdtext">${MOODS[m].label}</span></span>
-      <span class="name">${p.name}</span><span class="todo-n">${poops?`💩 ${poops} to-do${poops>1?"s":""}`:""}</span>
+      <span class="name">${p.name}</span>${pillOf(m,poops)}
       <span class="hwrow" aria-hidden="true"><span class="hw">A</span><span class="hw">B</span><span class="hw">C</span></span>`;
     b.onclick=e=>act("care",p,e);
     (JUKE.has(p.id)?jrow:shelf).appendChild(b);
@@ -442,7 +475,7 @@ function render(){
   const st=document.getElementById("status");
   st.innerHTML=(need.length?`<span>Needs a look:</span>${need.map(p=>`<button class="need" data-id="${p.id}"><span class="dot" style="background:var(${MOODS[moodOf(p)].tone})"></span>${p.name}: ${MOODS[moodOf(p)].label.toLowerCase()}</button>`).join("")}`
     :`<span class="ok">All Pis look fine.</span>`)+`<span class="muted">${allPoops} open to-do${allPoops===1?"":"s"}</span>`;
-  st.querySelectorAll(".need").forEach(b=>b.onclick=e=>{const id=b.dataset.id;act("care",pets.find(p=>p.id===id),e);document.getElementById("care").scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})});
+  st.querySelectorAll(".need").forEach(b=>b.onclick=e=>{const id=b.dataset.id;act("care",pets.find(p=>p.id===id),e)});
   renderCare(pets.find(p=>p.id===sel)); paint();
 }
 function floatAt(e,ch){
@@ -451,18 +484,22 @@ function floatAt(e,ch){
 }
 function act(a,p,e){
   beep(SFX.care);sel=p.id;render();if(e.type!=="click"||e.target.closest(".dev"))document.getElementById("dev-"+p.id)?.focus({preventScroll:true});
-  if(e.type==="click"&&innerWidth<760)document.getElementById("care").scrollIntoView({behavior:reduce?"auto":"smooth"});
+  // UX-02: bring the card into view on every screen size, unless it's already fully showing.
+  const r=document.getElementById("care").getBoundingClientRect();
+  if(e.type==="click"&&(r.top<0||r.bottom>innerHeight))document.getElementById("backrow").scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});
 }
 function wobble(id){const d=document.getElementById("dev-"+id);d.classList.remove("wobble");void d.offsetWidth;d.classList.add("wobble")}
 
 function renderCare(p){
   const m=moodOf(p), M=MOODS[m], c=document.getElementById("care"), isEgg=p.egg||p.unknown;
-  const said=(bad&&BADSAYS[m])||p.says, up=p.svc.filter(x=>x[1]===true&&!x[2]).length, need=p.svc.filter(x=>!x[2]).length, unk=p.svc.filter(x=>x[1]==null&&!x[2]).length;
+  const said=(bad&&BADSAYS[m])||p.says, up=p.svc.filter(x=>x[1]===true&&!x[2]).length, need=p.svc.filter(x=>!x[2]).length, nc=p.svc.filter(x=>x[1]==null&&!x[2]).length;
   const cls=(v,w,b)=>v>=b?"bad":v>=w?"warn":"";
-  c.innerHTML=`<div><h2>${p.name}</h2><p class="meta">${p.tag} · ${p.src}${p.live?` · ${p.live}`:p.seen?` · last heard ${p.seen}`:""}</p>
+  const unk=!isEgg&&p.known===false, n=openTodos(p).length, why=M.why[0].toLowerCase()+M.why.slice(1);
+  c.innerHTML=`<div><h2>${p.name}</h2><p class="meta">${[p.tag,unk&&p.asOf?`last real check ${p.asOf}`:p.src,unk?"":p.live||(p.seen&&`last heard ${p.seen}`)].filter(Boolean).join(" · ")}</p>
     <div class="hero"><div class="bigscreen"><canvas width="20" height="20" data-m="${m}" data-hat="${p.hat||""}" data-poop="0"></canvas></div><div class="bubble">${said}</div></div>
-    <p class="mood" style="color:var(${M.tone})">${M.label}: ${M.why}</p>
-    ${isEgg?"":`<ul class="facts"><li class="${p.online?"":"bad"}"><b>${p.online?"Online":"Offline"}</b></li><li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>${p.real?`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`:""}${p.online&&need?`<li class="${up+unk<need?"bad":""}">${unk===need?"Services <b>not checked</b>":`Services <b>${up}/${need}</b> up${unk?`, ${unk} not checked`:""}`}</li>`:""}</ul>`}
+    ${unk?`<p class="mood unk">${p.asOf?`Last known: ${M.label} (${p.asOf}). `:""}${liveTried?"Can't check right now.":"Checking…"}</p>`
+      :`<p class="mood" style="color:var(${M.tone})">${M.label}: ${why}${n&&!isEgg?` ${n} to-do${n>1?"s":""} waiting.`:""}</p>`}
+    ${isEgg?"":`<ul class="facts">${factsOf(p,cls)}${!unk&&p.online&&need?`<li class="${up+nc<need?"bad":""}">${nc===need?"Services <b>not checked</b>":`Services <b>${up}/${need}</b> up${nc?`, ${nc} not checked`:""}`}</li>`:unk&&need?`<li class="unk">Services can't tell</li>`:""}</ul>`}
     ${canRestart(p.id)?powerRow(p):""}
     ${p.spec&&p.spec.length?`<div class="specs"><span class="label">Specs</span><dl>${p.spec.map(x=>`<dt>${x[0]}</dt><dd class="${x[2]?"":"unsure"}">${x[1]}</dd>`).join("")}</dl>${p.spec.some(x=>!x[2])?`<p class="meta">Grey slanted ones aren't checked on the Pi yet.</p>`:""}</div>`:""}</div>
     <div class="right">
@@ -471,6 +508,17 @@ function renderCare(p){
     </div>`;
   c.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>onRestart(b.dataset.r,b.dataset.id));
   c.querySelectorAll(".clean").forEach(b=>b.onclick=e=>{const k=b.dataset.k;cleaned[k]=!cleaned[k];if(cleaned[k]){beep(SFX.clean);floatAt(e,"✨")}render();const n=c.querySelector(`.clean[data-k="${k}"]`);if(n)n.focus()});
+}
+// The facts line: live numbers, dated old numbers in grey, or nothing made-up (UX-03).
+function factsOf(p,cls){
+  if(p.known===false){
+    const d=p.dated;
+    return `<li class="unk"><b>Online?</b></li>`+(d?`<li class="unk">${num(p.temp,"°C")} ${d}</li><li class="unk">Disk ${num(p.disk,"%")} ${d}</li>`:`<li class="unk">No live numbers yet</li>`);
+  }
+  if(p.online===false)return `<li class="bad"><b>Offline</b>${LIVE?` (checked ${LIVE.checked})`:""}</li>`+(p.last?`<li class="unk">Last live numbers: ${num(p.last.temp,"°C")}, Disk ${num(p.last.disk,"%")} at ${p.last.at}</li>`:"");
+  const nums=`<li class="${cls(p.temp,65,80)}">${p.temp==null?"Temp <b>?</b>":`<b>${p.temp}°C</b>`}</li><li class="${cls(p.disk,85,95)}">Disk <b>${num(p.disk,"%")}</b></li>`;
+  return `<li><b>Online</b></li>`+(p.real?nums+`<li class="${cls(p.cpu,90,101)}">CPU <b>${num(p.cpu,"%")}</b> busy</li><li class="${cls(p.mem,90,101)}">Memory <b>${num(p.mem,"%")}</b> used</li>${p.up!=null?`<li>On for <b>${upText(p.up)}</b></li>`:""}`
+    :p.dated?`<li class="unk">${num(p.temp,"°C")} ${p.dated}</li><li class="unk">Disk ${num(p.disk,"%")} ${p.dated}</li>`:bad?nums:`<li class="unk">No live numbers yet</li>`);
 }
 function powerRow(p){
   const P=pending[p.id];
@@ -517,15 +565,16 @@ function watch(){
 async function refreshLive(){
   if(location.protocol==="file:")return;
   try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),20000);
-    const r=await fetch("api/status",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;LIVE=d}
-  catch(e){if(LIVE)LIVE={...LIVE,pis:Object.fromEntries(Object.entries(LIVE.pis).map(([k,v])=>[k,{...v,online:undefined}]))}}
+    const r=await fetch("api/status",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;LIVE=d;liveFailed=false}
+  catch(e){liveFailed=true;if(LIVE)LIVE={...LIVE,pis:Object.fromEntries(Object.entries(LIVE.pis).map(([k,v])=>[k,{...v,online:undefined}]))}}
+  liveTried=true;staleBanner();
   const any=LIVE&&Object.keys(LIVE.pis).some(canRestart);
   document.getElementById("restartall").hidden=!any;
   footnote();
 }
 function footnote(){
   if(!LIVE)return;
-  const n=PETS.filter(p=>healthOf(p.id)).length;
+  const n=HEALTH&&!HEALTH.stale?PETS.filter(p=>healthOf(p.id)).length:0;
   document.getElementById("footnote").textContent=`"Online" comes from a live check at ${LIVE.checked}${LIVE.dry?" (test mode: restarts are pretend)":""}. `
     +(n?`Temperature, disk, CPU, memory and time on are live for ${n} Pi${n>1?"s":""} (checked ${HEALTH.checked}, every 2 minutes); a Pi that says "Sample numbers" isn't sending them yet. Services come from the same check; "Not checked" means that Pi hasn't sent them yet.`
       :`Temperatures and disks are samples, and services aren't checked yet.`);
@@ -533,9 +582,14 @@ function footnote(){
 async function refreshHealth(){
   if(location.protocol==="file:")return;
   try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),45000);
-    const r=await fetch("api/health",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;HEALTH=d}
-  catch(e){HEALTH=null}
-  footnote();
+    const r=await fetch("api/health",{cache:"no-store",signal:ctl.signal});clearTimeout(t);if(!r.ok)throw 0;const d=await r.json();if(!d.ok||!d.pis)throw 0;HEALTH=d;healthFailed=false}
+  catch(e){healthFailed=true;if(HEALTH)HEALTH={...HEALTH,stale:true}}
+  staleBanner();footnote();
+}
+function staleBanner(){
+  const b=document.getElementById("stale"),[t,x]=liveFailed?["Can't reach the live check right now.","Online, temperatures and services below are the last known info, not live. Trying again every minute."]
+    :healthFailed?["Can't get live numbers right now.","Temperatures and services below are the last known info, not live. Trying again every 2 minutes."]:[];
+  b.hidden=!t;if(t)b.innerHTML=`<b>⚠ ${t}</b><span>${x}</span>`;
 }
 function showAllSent(ids){
   const box=document.getElementById("allbox"),names=ids.map(id=>(PETS.find(p=>p.id===id)||{name:id}).name);
@@ -564,6 +618,7 @@ document.getElementById("sound").onclick=e=>{soundOn=!soundOn;e.currentTarget.se
 render();
 if(!reduce)setInterval(()=>{frame++;paint()},600);
 document.getElementById("restartall").onclick=showAll;
+document.getElementById("backtop").onclick=()=>{scrollTo({top:0,behavior:reduce?"auto":"smooth"});document.getElementById("dev-"+sel)?.focus({preventScroll:true})};
 refreshLive().then(render);setInterval(()=>{if(!watching)refreshLive().then(render)},60000);
 refreshHealth().then(render);setInterval(()=>refreshHealth().then(render),120000);
 </script>
