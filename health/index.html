@@ -302,29 +302,33 @@ header{display:block}
 // svc = [name, check, note]: check is {ports:[..]} or {unit:"x"} or {prefix:"x"} (null = not checked); note = expected off.
 const PETS=[
  {id:"anchor",name:"AnchorPi",tag:"Jukebox house Pi",shell:"--shell-a",hat:"crown",src:"Sample numbers",online:true,temp:54,disk:41,seen:"just now",born:"before 09-27",
-  spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Raspbian bookworm (32-bit)",1],["Storage","Not in the notes yet",0],["Cooling","Not in the notes yet",0],["Network","Cable and Wi-Fi at the same time",1]],
+  spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Raspbian bookworm (32-bit)",1],["Storage","SD card, 117 GB",1],["Cooling","Not in the notes yet",0],["Network","Cable only (Wi-Fi off since 10-15)",1]],
   svc:[["Jukebox :8080",{ports:[8080]}],["MPD x4 rooms",{ports:[6600,6601,6602,6603]}],["Room streams",{ports:[18001,18002,18003]}],["Caddy :80",{ports:[80]}],["AnchorForge",null]],
   says:"I'm the boss of the house music. No new roommates, please!",
-  todo:[["BA","Decide if wlan0 gets turned off (it's on Wi-Fi and cable at once)"],["Claude","Confirm the old Biglypedia copy here is stopped"]]},
+  todo:[["BA","Install the waiting updates (197, needs a restart)"]]},
  {id:"bigpi1",name:"BigPi-001",tag:"Server Pi",shell:"--shell-b",hat:"antenna",src:"Real check 10-15",asOf:"10-15",online:true,temp:56,disk:10,seen:"10-15",born:"10-02",awake:"10-15",
   spec:[["Model","Raspberry Pi 5",1],["Memory","8 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 110 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Network","Cable",1],["Extras","Docker 29.9 + Compose 5.6",1]],
   svc:[["Biglypedia 8470/8471",{ports:[8470,8471]}],["BiglyBank 8790",{ports:[8790]}],["Bigly Games 4173",{ports:[4173]}],["Biglympics watch page",{unit:"bigly-games-watch.service"}],["BNN signage 8095",{ports:[8095]}],["BiglyCraft 8800",{ports:[8800]}],["Postgres 17",{ports:[5432]}],["Docker",{unit:"docker.service"}],["Portal 8090/8091",{ports:[8090,8091]},"on purpose"]],
   says:"My new fan keeps me cool!",
   todo:[["BA","Confirm the router reserves .158 for me"],["BA","Turn off Tailscale key expiry (2027-03-31)"]]},
  {id:"bigpi2",name:"BigPi-002",tag:"DevHub",shell:"--shell-d",hat:"hardhat",src:"Sample numbers",online:true,temp:49,disk:22,seen:"just now",born:"unknown",
-  spec:[["Model","Raspberry Pi 5 (guess: it wears a Pi 5 fan)",0],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 28 GB",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Extras","Docker 29.9 + Compose 5.6",1]],
+  spec:[["Model","Raspberry Pi 5",1],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Storage","SD card, about 28 GB",1],["Network","Cable and Wi-Fi",1],["Cooling","Active Cooler fan (fitted 10-15)",1],["Extras","Docker 29.9 + Compose 5.6",1]],
   svc:[["DevHub",{ports:[8640]}],["Restart helper",{ports:[8452]}],["Docker",{unit:"docker.service"}]],says:"I'm the workshop. New apps can move in here!",todo:[]},
- {id:"room2",name:"Marketing",tag:"room2 speaker",shell:"--shell-c",hat:"phones",src:"Sample numbers",online:true,temp:47,disk:30,seen:"just now",born:"unknown",wifiFlaky:true,
-  spec:[["Model","Not checked (old notes said Pi Zero 2 W, but it has 2 GB)",0],["Memory","2 GB",1],["System","Debian trixie (64-bit)",1],["Network","Wi-Fi (\"Bigly IOT\")",1]],
-  svc:[["Room player",{prefix:"bigly-room"}]],says:"The Wi-Fi keeps making my music skip!",
+ {id:"room1",name:"room1",tag:"room1 speaker (new)",shell:"--shell-f",hat:"phones",src:"Checked 10-16",asOf:"10-16",online:true,temp:53,disk:6,seen:"10-16",born:"10-16",
+  spec:[["Model","Raspberry Pi Zero 2 W",1],["Memory","512 MB",1],["System","Debian trixie",1],["Storage","SD card, 59 GB",1],["Network","Wi-Fi",1]],
+  svc:[["Room player",{prefix:"bigly-room"}]],says:"Hi, I'm new! Which room am I in?",
+  todo:[["BA","Tell Claude which room room1 plays in"],["BA","Add the restart key so I get live numbers"]]},
+ {id:"room2",name:"Marketing",tag:"room2 speaker",shell:"--shell-c",hat:"phones",src:"Checked 10-16",asOf:"10-16",online:true,temp:52,disk:12,seen:"10-16",born:"10-16",wifiFlaky:true,
+  spec:[["Model","Raspberry Pi Zero 2 W (swapped in 10-16)",1],["Memory","512 MB",1],["System","Debian trixie",1],["Storage","SD card, 29 GB",1],["Network","Wi-Fi, new address .0.203",1]],
+  svc:[["Room player",{prefix:"bigly-room"}]],says:"I'm a new little Pi in the Marketing room!",
   todo:[["BA","Plug in the USB Ethernet adapter when it arrives"]]},
- {id:"room3",name:"Fulfillment",tag:"room3 speaker",shell:"--shell-e",hat:"phones",src:"Sample numbers",online:true,temp:45,disk:28,seen:"just now",born:"unknown",
-  spec:[["Model","Raspberry Pi Zero 2 W",1],["Memory","512 MB (about 0.4 GB free to use)",1],["System","Debian trixie",1],["Network","Wi-Fi, two radios (uses \"GO BIGLY\")",1]],
-  svc:[["Room player",{prefix:"bigly-room"}]],says:"La la la. My Wi-Fi now uses the fast radio!",
+ {id:"room3",name:"Fulfillment",tag:"room3 speaker",shell:"--shell-e",hat:"phones",src:"Checked 10-16",asOf:"10-16",online:true,temp:49,disk:11,seen:"10-16",born:"unknown",
+  spec:[["Model","Raspberry Pi Zero 2 W",1],["Memory","512 MB",1],["System","Debian trixie",1],["Storage","SD card, 29 GB",1],["Network","Wi-Fi, two radios (now uses the 2nd, .1.222)",1]],
+  svc:[["Room player",{prefix:"bigly-room"}]],says:"I moved to my other Wi-Fi radio. La la la!",
   todo:[]},
- {id:"room4",name:"Cust. Service",tag:"room4 speaker",shell:"--shell-f",hat:"phones",src:"Never checked",unknown:true,svc:[],
-  spec:[["Model","Pi Zero 2 W (from the plan, not checked)",0],["Speaker","Bluetooth speaker",0],["Network","Hasn't joined Wi-Fi yet",0]],
-  says:"Who am I? Nobody has checked on me yet.",todo:[["BA","Tell Claude room4's details"]]},
+ {id:"bigpi3",name:"BigPi-003",tag:"AJN Control Room (setting up)",shell:"--shell-g",src:"Planned",egg:true,svc:[],
+  spec:[["Model","Raspberry Pi 5 (was the Marketing Pi)",1],["Memory","2 GB",1],["Storage","32 GB microSD",1],["Job","AJN Control Room website for Stoney (planned)",0],["Network","Cable (planned)",0]],
+  says:"I used to play music in Marketing. Soon I'll host the AJN Control Room!",todo:[["BA","Set me up with the AJN Control Room plan"]]},
  {id:"signage",name:"Signage Pi",tag:"TV Pi (planned)",shell:"--shell-h",src:"Planned",egg:true,svc:[],
   spec:[["Model","Raspberry Pi 5 (planned)",0],["Memory","4 GB (planned)",0]],
   says:"I'll hatch into the BNN TV pet. Did anyone buy me yet?",todo:[["BA","Confirm the signage Pi was bought"]]}
@@ -332,6 +336,7 @@ const PETS=[
 const BAD={anchor:{online:false,seen:"12 min ago"},bigpi2:{disk:96},room3:{svc:[["Room player",false]]}};
 // Real events from PIS.md and the 10-09 checkup.
 const DIARY=[
+ ["10-16","All Pis","Big swap: room1 joined, Marketing became a Pi Zero, Fulfillment moved to its other Wi-Fi radio, Cust. Service retired, and the old Marketing Pi 5 became BigPi-003."],
  ["10-15","BigPi-001 + BigPi-002","Got Active Cooler fans (BigPi-001 went from 68°C to 56°C) and now swap backup copies every night."],
  ["10-09","BigPi-001","Checkup: every chore done, 68°C with no fan, disk 9% full."],
  ["10-07","BigPi-001","Was shut down and power-cycled. Nobody knows why yet."],
@@ -451,7 +456,7 @@ const openTodos=p=>p.todo.filter((t,i)=>!cleaned[p.id+i]);
 const PILL={happy:["OK","calm"],ok:["OK","calm"],sweaty:["Too warm","warn"],dizzy:["Dizzy","warn"],sick:["Sick","bad"],asleep:["Offline","bad"],mystery:["Never checked","idle"],egg:["Not hatched","idle"]};
 const pillOf=(m,n)=>`<span class="pill t-${PILL[m][1]}">${PILL[m][1]==="calm"?'<i class="gdot"></i>':""}<b>${PILL[m][0]}</b>${n?` · ${n} to-do${n>1?"s":""}`:""}</span>`;
 const PL={"--shell-a":["red","Cherry Red"],"--shell-b":["amber","Amber Orange"],"--shell-d":["purple","Atomic Purple"],"--shell-c":["cyan","Ice Cyan"],"--shell-e":["green","Lime Green"],"--shell-f":["smoke","Graphite Smoke"],"--shell-h":["blue","Cobalt Blue"],"--shell-g":["clear","Natural Clear"]};
-const JUKE=new Set(["anchor","room2","room3","room4"]);
+const JUKE=new Set(["anchor","room1","room2","room3"]);
 const plOf=p=>JUKE.has(p&&p.id)?PL["--shell-a"]:(PL[p&&p.shell]||PL["--shell-a"]);
 function render(){
   {const sp=PETS.find(x=>x.id===sel);document.getElementById("care").className="care pl-"+plOf(sp)[0]}
